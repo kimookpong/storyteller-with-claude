@@ -1,0 +1,66 @@
+{
+  "id": "kids-cartoon",
+  "name": "การ์ตูนสดใส (สำหรับเด็ก/ครอบครัว)",
+  "summary": "vector สีสด ตัวละครเด้ง ๆ ตัดเร็วพอดี ข้อมูลน้อย ภาษาง่าย — เหมาะกับเด็ก 8–14 ปีและครอบครัว",
+  "guide": "rules/04-visual-style.md",
+  "shotSec": {
+    "min": 2.6,
+    "max": 3.6,
+    "hardMax": 6
+  },
+  "mix": {
+    "parallax": [
+      15,
+      30
+    ],
+    "vector": [
+      40,
+      60
+    ],
+    "collage": [
+      0,
+      10
+    ],
+    "data": [
+      10,
+      20
+    ],
+    "title": [
+      0,
+      10
+    ]
+  },
+  "maxParallaxRun": 2,
+  "eras": [
+    "prehistoric",
+    "ancient",
+    "medieval",
+    "early-modern",
+    "1800s",
+    "early-1900s",
+    "mid-century",
+    "80s-90s",
+    "2000s",
+    "present",
+    "future"
+  ],
+  "maxEras": 3,
+  "subtitles": true,
+  "audio": {
+    "music": {
+      "modern": "audio/music/lofi-pad.wav",
+      "vintage": "audio/music/lofi-pad-vintage.wav"
+    },
+    "musicGap": 0.4,
+    "musicUnderVo": 0.12,
+    "sfx": true,
+    "sfxVolume": 0.36
+  },
+  "render": "vector",
+  "image": {
+    "model": "google/gemini-2.5-flash-image",
+    "cutoutModel": "google/gemini-2.5-flash-image",
+    "cutout": "chroma",
+    "prompt": "Bright friendly children's cartoon illustration, rounded chunky shapes, thick soft outlines, cheerful saturated colors, simple backgrounds, warm and safe for kids"
+  }
+}

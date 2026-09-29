@@ -1,0 +1,66 @@
+{
+  "id": "cinematic-parallax",
+  "name": "ภาพยนตร์ 2.5D (Cinematic)",
+  "summary": "ฉากลึกแบบหนัง กล้องเคลื่อนช้า parallax + DOF เป็นพระเอก ตัดช้า — เหมาะกับเรื่องมหากาพย์/ตำนาน และใช้คู่กับภาพจาก AI",
+  "guide": "rules/06-camera-parallax-dof.md",
+  "shotSec": {
+    "min": 4.5,
+    "max": 6,
+    "hardMax": 10
+  },
+  "mix": {
+    "parallax": [
+      45,
+      60
+    ],
+    "vector": [
+      10,
+      25
+    ],
+    "collage": [
+      5,
+      20
+    ],
+    "data": [
+      5,
+      15
+    ],
+    "title": [
+      0,
+      10
+    ]
+  },
+  "maxParallaxRun": 4,
+  "eras": [
+    "prehistoric",
+    "ancient",
+    "medieval",
+    "early-modern",
+    "1800s",
+    "early-1900s",
+    "mid-century",
+    "80s-90s",
+    "2000s",
+    "present",
+    "future"
+  ],
+  "maxEras": 4,
+  "subtitles": true,
+  "audio": {
+    "music": {
+      "modern": "audio/music/lofi-pad.wav",
+      "vintage": "audio/music/lofi-pad-vintage.wav"
+    },
+    "musicGap": 0.36,
+    "musicUnderVo": 0.1,
+    "sfx": true,
+    "sfxVolume": 0.22
+  },
+  "render": "hybrid",
+  "image": {
+    "model": "google/gemini-2.5-flash-image",
+    "cutoutModel": "google/gemini-2.5-flash-image",
+    "cutout": "chroma",
+    "prompt": "Cinematic digital matte painting, dramatic volumetric light, atmospheric depth and haze, rich but controlled colors on deep navy shadows (#0E1A2B) with warm golden highlights (#FFC94A), painterly, epic scale"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "friend-sleepy-male",
+  "name": "เพื่อนชาย เล่าตอนดึก (ง่วงนิด ๆ)",
+  "summary": "ผู้ชายวัยทำงานเล่าให้เพื่อนฟังตอนดึก อบอุ่น ไม่รีบ ไม่สอน",
+  "guide": "presets/voices/friend-sleepy-male.md",
+  "persona": {
+    "gender": "male",
+    "pronoun": "เรา",
+    "particles": ["นะ", "อะ", "แหละ", "เนอะ", "ดิ", "เลย", "ปะ"],
+    "polite": {"word": "ครับ", "allowedBeats": ["outro"]},
+    "banned": ["ดังนั้นจึง", "ซึ่งได้แก่", "อันเป็น", "ทั้งนี้", "กู", "มึง", "ท่านผู้ชม", "คุณผู้ชม"],
+    "limits": {"ง่วง": 1}
+  },
+  "tts": {
+    "model": "google/gemini-3.8-flash-tts",
+    "voice": "Umbriel",
+    "style": "Thai male narrator talking casually to a close friend late at night: warm, friendly, relaxed and a little sleepy, unhurried pace with soft trailing endings, slight smile in the voice. Not formal, not a news reader. Gentle excitement only on surprising facts.",
+    "gapMs": 140,
+    "paraGapMs": 800,
+    "audition": ["Umbriel", "Achird", "Enceladus", "Iapetus", "Zubenelgenubi", "Charon", "Algenib", "Sadachbia"],
+    "auditionText": "เช้านี้กินกาแฟกันยัง… รู้ปะ ทั้งโลกดื่มกาแฟกันวันละกว่าสองพันล้านแก้วเลยนะ"
+  },
+  "charsPerSec": 10.2,
+  "calibrated": "coffee-world: 1,688 ตัวอักษร / 165.5 วิ"
+}

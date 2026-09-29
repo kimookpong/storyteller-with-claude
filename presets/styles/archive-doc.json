@@ -1,0 +1,63 @@
+{
+  "id": "archive-doc",
+  "name": "สารคดีเอกสารเก่า (Archive)",
+  "summary": "collage เอกสาร/ภาพเก่าเป็นหลัก กล้อง drift ช้า texture แรง จังหวะช้ากว่า — เหมาะเรื่องประวัติศาสตร์ที่เล่ายาว",
+  "guide": "rules/04-visual-style.md",
+  "shotSec": {
+    "min": 5,
+    "max": 7,
+    "hardMax": 10
+  },
+  "mix": {
+    "parallax": [
+      15,
+      30
+    ],
+    "vector": [
+      0,
+      15
+    ],
+    "collage": [
+      45,
+      65
+    ],
+    "data": [
+      5,
+      20
+    ],
+    "title": [
+      0,
+      10
+    ]
+  },
+  "maxParallaxRun": 2,
+  "eras": [
+    "prehistoric",
+    "ancient",
+    "medieval",
+    "early-modern",
+    "1800s",
+    "early-1900s",
+    "mid-century",
+    "present"
+  ],
+  "maxEras": 4,
+  "subtitles": true,
+  "audio": {
+    "music": {
+      "modern": "audio/music/lofi-pad.wav",
+      "vintage": "audio/music/lofi-pad-vintage.wav"
+    },
+    "musicGap": 0.32,
+    "musicUnderVo": 0.09,
+    "sfx": true,
+    "sfxVolume": 0.2
+  },
+  "render": "vector",
+  "image": {
+    "model": "google/gemini-2.5-flash-image",
+    "cutoutModel": "google/gemini-2.5-flash-image",
+    "cutout": "chroma",
+    "prompt": "Paper cut-out collage illustration, vintage print texture, halftone dots, torn paper edges, sepia and muted warm colors, museum-archive mood"
+  }
+}

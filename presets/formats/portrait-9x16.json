@@ -1,0 +1,10 @@
+{
+  "id": "portrait-9x16",
+  "name": "TikTok · Reels · Shorts (แนวตั้ง 9:16)",
+  "summary": "1080×1920 · ข้อความ/ซับอยู่ในกรอบกลาง ~900×1160 ใช้ได้ทั้ง TikTok, Instagram Reels, YouTube Shorts",
+  "width": 1080, "height": 1920, "fps": 30,
+  "safe": {"top": 160, "bottom": 420, "left": 90, "right": 150},
+  "subtitle": {"mode": "caption", "y": 1300, "fontSize": 64, "maxLineChars": 16, "maxLines": 2, "enFontSize": 38, "enMaxLineChars": 28},
+  "cover": {"width": 1080, "height": 1920, "gridCrop": "3:4"},
+  "recommend": {"style": "shorts-punch", "targetSec": [30, 60]}
+}

@@ -1,0 +1,36 @@
+{
+  "id": "doc-narrator",
+  "name": "ผู้บรรยายสารคดี",
+  "summary": "ผู้บรรยายสารคดีน้ำเสียงทุ้ม สุภาพกึ่งทางการ ชวนติดตาม ไม่ใช้คำลงท้าย",
+  "guide": "presets/voices/doc-narrator.md",
+  "persona": {
+    "gender": "male",
+    "pronoun": "เรา",
+    "particles": [],
+    "polite": null,
+    "banned": [
+      "กู",
+      "มึง",
+      "ท่านผู้ชม"
+    ],
+    "limits": {}
+  },
+  "tts": {
+    "model": "google/gemini-3.8-flash-tts",
+    "voice": "Charon",
+    "style": "Thai documentary narrator: deep, calm and measured, clear diction, slightly slow and cinematic, respectful but engaging. Build quiet suspense before reveals. Never salesy.",
+    "gapMs": 180,
+    "paraGapMs": 900,
+    "audition": [
+      "Charon",
+      "Iapetus",
+      "Algenib",
+      "Orus",
+      "Rasalgethi",
+      "Schedar"
+    ],
+    "auditionText": "กาแฟหนึ่งแก้วในมือเรา… เคยเป็นสิ่งต้องห้ามมาก่อน และเรื่องราวของมัน ยาวนานกว่าที่คิด"
+  },
+  "charsPerSec": 9.5,
+  "calibrated": null
+}

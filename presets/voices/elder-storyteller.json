@@ -1,0 +1,44 @@
+{
+  "id": "elder-storyteller",
+  "name": "ผู้เฒ่าเล่าตำนาน",
+  "summary": "ชายสูงวัยเสียงแหบทุ้ม เล่าช้า ๆ เหมือนนิทานข้างกองไฟ — เหมาะกับตำนาน ความเชื่อ ประวัติศาสตร์โบราณ",
+  "guide": "presets/voices/elder-storyteller.md",
+  "persona": {
+    "gender": "male",
+    "pronoun": "เรา",
+    "particles": [
+      "นะ",
+      "แล"
+    ],
+    "polite": null,
+    "banned": [
+      "กู",
+      "มึง",
+      "ท่านผู้ชม",
+      "คุณผู้ชม",
+      "ครับ",
+      "ค่ะ"
+    ],
+    "limits": {
+      "แล": 3
+    }
+  },
+  "tts": {
+    "model": "google/gemini-3.8-flash-tts",
+    "voice": "Algenib",
+    "style": "Elderly Thai male storyteller by a campfire: deep, slightly gravelly, slow and unhurried, warm and wise, long pauses before important moments, a hint of mystery. Not theatrical.",
+    "gapMs": 220,
+    "paraGapMs": 1100,
+    "audition": [
+      "Algenib",
+      "Gacrux",
+      "Charon",
+      "Iapetus",
+      "Sadaltager",
+      "Rasalgethi"
+    ],
+    "auditionText": "นานมาแล้ว… นานจนไม่มีใครจำได้ ผู้คนเล่าต่อกันมาว่า มนุษย์คนแรก ถูกปั้นขึ้นจากดิน"
+  },
+  "charsPerSec": 8.5,
+  "calibrated": null
+}

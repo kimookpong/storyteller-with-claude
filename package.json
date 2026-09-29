@@ -1,0 +1,42 @@
+{
+  "name": "storyteller-with-claude",
+  "version": "1.0.0",
+  "description": "Thai infographic video pipeline with Claude + Remotion (HistoryTeller)",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "validate": "node scripts/validate.mjs projects/coffee-world",
+    "stills": "node scripts/stills.mjs 60",
+    "render": "node scripts/render.mjs coffee-world",
+    "master": "node scripts/master.mjs",
+    "cover": "node scripts/cover.mjs coffee-world",
+    "app": "node app/server.mjs",
+    "budget": "node scripts/lib/settings.mjs",
+    "eras": "node scripts/era-sheet.mjs",
+    "audio": "python3 scripts/gen-audio.py"
+  },
+  "keywords": [],
+  "author": "Najmee (https://github.com/kimookpong)",
+  "license": "ISC",
+  "dependencies": {
+    "@fontsource/ibm-plex-sans-thai": "^5.3.0",
+    "@fontsource/kanit": "^5.3.0",
+    "@fontsource/mali": "^5.3.0",
+    "@remotion/cli": "^4.0.529",
+    "@remotion/transitions": "^4.0.529",
+    "d3-geo": "^3.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.529",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2",
+    "@remotion/bundler": "^4.0.529",
+    "@remotion/renderer": "^4.0.529"
+  },
+  "devDependencies": {
+    "@types/d3-geo": "^3.1.1",
+    "@types/react": "^19.3.0",
+    "@types/topojson-client": "^3.1.5",
+    "typescript": "^7.0.2"
+  },
+  "private": true
+}

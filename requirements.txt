@@ -1,0 +1,1 @@
+# scripts/tts.py ใช้แค่ Python standard library (ไม่ต้องติดตั้งอะไรเพิ่ม)

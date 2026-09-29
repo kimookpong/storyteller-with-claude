@@ -1,0 +1,28 @@
+{
+  "id": "fast-hype",
+  "name": "เล่าเร็ว รัว ๆ",
+  "summary": "พากย์เร็ว พลังสูง แทบไม่เว้นจังหวะ แบบคลิปสั้น TikTok/Shorts — เหมาะกับคลิป ≤ 2 นาที",
+  "guide": "presets/voices/fast-hype.md",
+  "pace": "fast",
+  "persona": {
+    "gender": "any",
+    "pronoun": "เรา",
+    "particles": ["เลย", "นะ", "อะ"],
+    "polite": null,
+    "banned": ["สวัสดี", "ติดตาม", "กดไลก์", "กดแชร์", "ดังนั้นจึง", "ซึ่งได้แก่", "อันเป็น", "ทั้งนี้", "กู", "มึง", "ท่านผู้ชม", "คุณผู้ชม", "ครับ", "ค่ะ"],
+    "limits": {"…": 4}
+  },
+  "tts": {
+    "model": "google/gemini-3.8-flash-tts",
+    "voice": "Puck",
+    "style": "Fast, punchy Thai explainer like a viral short video: rapid-fire delivery, high energy, almost no pauses between phrases, crisp clear articulation, excited emphasis on numbers and surprises. Not shouting, not a news reader.",
+    "gapMs": 40,
+    "paraGapMs": 220,
+    "trimKeepMs": 15,
+    "tempo": 1.0,
+    "audition": ["Puck", "Fenrir", "Laomedeia", "Sadachbia", "Zephyr", "Autonoe"],
+    "auditionText": "รู้ปะ… ถ้าย่ออายุโลกเหลือวันเดียว มนุษย์เพิ่งโผล่มาหกวินาทีสุดท้ายเอง! แล้วที่เหลือทั้งวันคืออะไร? ไปดูกัน"
+  },
+  "charsPerSec": 15.0,
+  "calibrated": null
+}

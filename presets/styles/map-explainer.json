@@ -1,0 +1,66 @@
+{
+  "id": "map-explainer",
+  "name": "อธิบายด้วยแผนที่และข้อมูล",
+  "summary": "แผนที่/กราฟเป็นพระเอก (d3-geo) คั่นด้วย vector — เหมาะเรื่องการค้า เส้นทาง ภูมิรัฐศาสตร์",
+  "guide": "rules/04-visual-style.md",
+  "shotSec": {
+    "min": 3.8,
+    "max": 5,
+    "hardMax": 9
+  },
+  "mix": {
+    "parallax": [
+      15,
+      30
+    ],
+    "vector": [
+      15,
+      30
+    ],
+    "collage": [
+      5,
+      20
+    ],
+    "data": [
+      35,
+      50
+    ],
+    "title": [
+      0,
+      10
+    ]
+  },
+  "maxParallaxRun": 3,
+  "eras": [
+    "prehistoric",
+    "ancient",
+    "medieval",
+    "early-modern",
+    "1800s",
+    "early-1900s",
+    "mid-century",
+    "80s-90s",
+    "2000s",
+    "present",
+    "future"
+  ],
+  "maxEras": 4,
+  "subtitles": true,
+  "audio": {
+    "music": {
+      "modern": "audio/music/lofi-pad.wav",
+      "vintage": "audio/music/lofi-pad-vintage.wav"
+    },
+    "musicGap": 0.32,
+    "musicUnderVo": 0.09,
+    "sfx": true,
+    "sfxVolume": 0.28
+  },
+  "render": "vector",
+  "image": {
+    "model": "google/gemini-2.5-flash-image",
+    "cutoutModel": "google/gemini-2.5-flash-image",
+    "cutout": "chroma",
+    "prompt": "Clean flat infographic illustration, simple geometric shapes, soft gradients, no outlines, deep navy palette (#0E1A2B, #1C3350) with warm accents (#FFC94A, #FF6B4A, #3FD6C6), minimal and readable"
+  }
+}

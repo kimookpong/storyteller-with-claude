@@ -1,0 +1,26 @@
+{
+  "id": "landscape-16x9",
+  "name": "YouTube แนวนอน 16:9",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "safe": {
+    "x": 96,
+    "y": 64
+  },
+  "subtitle": {
+    "fontSize": 40,
+    "bottom": 64,
+    "maxLineChars": 38,
+    "maxLines": 2,
+    "mode": "box",
+    "enFontSize": 30,
+    "enMaxLineChars": 48
+  },
+  "cover": {
+    "width": 1280,
+    "height": 720,
+    "maxBytes": 2097152
+  },
+  "summary": "1920×1080 · YouTube ปกติ"
+}

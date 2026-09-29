@@ -1,0 +1,32 @@
+.env
+node_modules/
+out/
+__pycache__/
+.venv/
+.DS_Store
+public/*/vo/.cache/
+
+# รูป AI: ผู้สมัครที่ไม่ได้เลือก (ไฟล์ใหญ่ สร้างใหม่ได้จาก images.json + images.lock.json)
+public/*/img/_cand/
+_to_delete/
+
+# --- ไม่อัปขึ้น public repo ---
+# ความลับ / ค่าเฉพาะเครื่อง
+.env.*
+!.env.example
+# เสียงพากย์ที่สร้างจาก TTS (ไฟล์ใหญ่ สร้างใหม่ได้ด้วย scripts/tts.py)
+public/*/vo/
+# ไฟล์ส่วนตัว/ชั่วคราว
+Claude outputs/
+*.tgz
+*.log
+.vscode/
+.idea/
+
+# งานของแต่ละเรื่อง (projects/<slug>/) และไฟล์สื่อต่อโปรเจกต์ — ไม่ขึ้น repo
+# สร้างเรื่องใหม่ได้จากหน้า HistoryTeller (templates/ คือแม่แบบ)
+projects/*
+!projects/.gitkeep
+public/*
+!public/audio/
+!public/textures/

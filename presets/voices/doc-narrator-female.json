@@ -1,0 +1,39 @@
+{
+  "id": "doc-narrator-female",
+  "name": "ผู้บรรยายสารคดี (หญิง)",
+  "summary": "ผู้บรรยายหญิงน้ำเสียงอบอุ่น นุ่ม ชัด สุภาพกึ่งทางการ ชวนติดตาม ไม่ใช้คำลงท้าย",
+  "guide": "presets/voices/doc-narrator-female.md",
+  "persona": {
+    "gender": "female",
+    "pronoun": "เรา",
+    "particles": [],
+    "polite": null,
+    "banned": [
+      "กู",
+      "มึง",
+      "ท่านผู้ชม",
+      "คุณผู้ชม",
+      "ครับ",
+      "ค่ะ"
+    ],
+    "limits": {}
+  },
+  "tts": {
+    "model": "google/gemini-3.8-flash-tts",
+    "voice": "Sulafat",
+    "style": "Thai female documentary narrator: warm, calm and articulate, gentle measured pace, elegant and trustworthy. Soft suspense before reveals, never salesy or dramatic.",
+    "gapMs": 170,
+    "paraGapMs": 850,
+    "audition": [
+      "Sulafat",
+      "Vindemiatrix",
+      "Gacrux",
+      "Kore",
+      "Despina",
+      "Erinome"
+    ],
+    "auditionText": "ในปี 1511… ศาลที่เมกกะมีคำสั่งห้ามดื่มกาแฟ ทว่าคำสั่งนั้น อยู่ได้ไม่นาน"
+  },
+  "charsPerSec": 10.0,
+  "calibrated": null
+}

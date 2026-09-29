@@ -1,0 +1,156 @@
+{
+  "meta": {
+    "slug": "coffee-world",
+    "title": "กาแฟยึดโลกได้ยังไง",
+    "fps": 30,
+    "width": 1920,
+    "height": 1080,
+    "targetSec": 180
+  },
+  "sources": {
+    "F-01": "Wikipedia – Economics of coffee"
+  },
+  "scenes": [
+    {
+      "id": "S01",
+      "beat": "hook",
+      "era": "present",
+      "vo": "ทุกเช้าเลยอะ… คนทั้งโลกกินกาแฟกันวันละ [#S01-02] สองพันล้านแก้ว [#S01-03] แต่เขาเล่ากันว่า… ทั้งหมดนี่มันเริ่มจากแพะตัวเดียวนะ",
+      "voTTS": "ทุกเช้าเลยอะ… คนทั้งโลกกินกาแฟกันวันละ [#S01-02] สองพันล้านแก้ว [#S01-03] แต่เขาเล่ากันว่า… ทั้งหมดนี่มันเริ่มจากแพะตัวเดียวนะ",
+      "voFile": "vo/S01.wav",
+      "holdAfter": 0.4,
+      "shots": [
+        {
+          "id": "S01-01",
+          "kind": "parallax",
+          "description": "เมืองยามเช้า ไอกาแฟลอยจากแก้วบนโต๊ะริมหน้าต่าง กล้องดันเข้าหาแก้ว",
+          "layers": [
+            {
+              "id": "bg",
+              "asset": "placeholder:city-dawn",
+              "style": "vector",
+              "z": 3200
+            },
+            {
+              "id": "mg",
+              "asset": "placeholder:window-frame",
+              "style": "vector",
+              "z": 1600
+            },
+            {
+              "id": "subject",
+              "asset": "placeholder:coffee-cup",
+              "style": "vector",
+              "z": 1000,
+              "anim": "float"
+            },
+            {
+              "id": "fg",
+              "asset": "placeholder:steam-particles",
+              "style": "vector",
+              "z": 500
+            }
+          ],
+          "camera": {
+            "move": "push-in",
+            "from": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "to": {
+              "x": 0,
+              "y": -20,
+              "z": 220
+            },
+            "ease": "inOutCubic"
+          },
+          "focus": {
+            "target": "subject"
+          },
+          "sfx": [
+            {
+              "name": "soft-whoosh",
+              "at": "start"
+            }
+          ]
+        },
+        {
+          "id": "S01-02",
+          "kind": "data",
+          "description": "ไอคอนแก้วกาแฟเด้งขึ้นเต็มจอ + counter",
+          "layers": [
+            {
+              "id": "bg",
+              "asset": "placeholder:bg-deep",
+              "style": "vector",
+              "z": 1000
+            }
+          ],
+          "data": {
+            "chart": "counter",
+            "values": {
+              "to": 2000000000,
+              "suffix": " แก้ว/วัน"
+            },
+            "sourceRef": "F-01"
+          },
+          "sfx": [
+            {
+              "name": "tick",
+              "at": "start"
+            }
+          ]
+        },
+        {
+          "id": "S01-03",
+          "kind": "collage",
+          "description": "ภาพแกะเส้นแพะกระโดด ตัดขอบกระดาษ ปากกาแดงวงที่ผลกาแฟในปาก",
+          "layers": [
+            {
+              "id": "bg",
+              "asset": "placeholder:parchment",
+              "style": "collage",
+              "z": 2800
+            },
+            {
+              "id": "subject",
+              "asset": "placeholder:goat-engraving",
+              "style": "collage",
+              "z": 1000,
+              "anim": "stop-motion"
+            },
+            {
+              "id": "fg",
+              "asset": "placeholder:marker-circle",
+              "style": "collage",
+              "z": 900
+            }
+          ],
+          "camera": {
+            "move": "drift",
+            "from": {
+              "x": -20,
+              "y": 0,
+              "z": 0
+            },
+            "to": {
+              "x": 20,
+              "y": 0,
+              "z": 40
+            }
+          },
+          "focus": {
+            "target": "subject"
+          },
+          "sfx": [
+            {
+              "name": "paper-rustle",
+              "at": "start"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

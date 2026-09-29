@@ -1,0 +1,66 @@
+{
+  "id": "minimal-data",
+  "name": "มินิมอล ข้อมูลล้วน",
+  "summary": "พื้นเรียบ ตัวเลข/กราฟ/ไทม์ไลน์เป็นพระเอก ภาพประกอบน้อย ตัดสม่ำเสมอ — เหมาะกับเรื่องเศรษฐกิจ สถิติ เปรียบเทียบ",
+  "guide": "rules/07-infographic-typography.md",
+  "shotSec": {
+    "min": 3.6,
+    "max": 4.8,
+    "hardMax": 8
+  },
+  "mix": {
+    "parallax": [
+      5,
+      15
+    ],
+    "vector": [
+      15,
+      30
+    ],
+    "collage": [
+      0,
+      10
+    ],
+    "data": [
+      50,
+      70
+    ],
+    "title": [
+      5,
+      15
+    ]
+  },
+  "maxParallaxRun": 2,
+  "eras": [
+    "prehistoric",
+    "ancient",
+    "medieval",
+    "early-modern",
+    "1800s",
+    "early-1900s",
+    "mid-century",
+    "80s-90s",
+    "2000s",
+    "present",
+    "future"
+  ],
+  "maxEras": 3,
+  "subtitles": true,
+  "audio": {
+    "music": {
+      "modern": "audio/music/lofi-pad.wav",
+      "vintage": "audio/music/lofi-pad-vintage.wav"
+    },
+    "musicGap": 0.3,
+    "musicUnderVo": 0.08,
+    "sfx": true,
+    "sfxVolume": 0.24
+  },
+  "render": "vector",
+  "image": {
+    "model": "google/gemini-2.5-flash-image",
+    "cutoutModel": "google/gemini-2.5-flash-image",
+    "cutout": "chroma",
+    "prompt": "Minimal flat illustration, lots of negative space, simple geometric icons, deep navy background (#0E1A2B) with one or two accent colors (#FFC94A, #3FD6C6), clean and calm"
+  }
+}

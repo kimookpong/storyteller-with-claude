@@ -1,0 +1,49 @@
+{
+  "_note": "ข้อจำกัดของแต่ละแพลตฟอร์ม (ตรวจล่าสุด ก.ย. 2026 — แพลตฟอร์มเปลี่ยนบ่อย แก้ตัวเลขที่นี่ได้) · limit = เพดานจริง, ideal = ช่วงที่แนะนำ · นับเป็นจำนวนตัวอักษร (code point)",
+  "platforms": [
+    {
+      "id": "youtube", "name": "YouTube", "formats": ["landscape-16x9", "portrait-9x16"],
+      "fields": [
+        {"key": "title", "label": "ชื่อคลิป", "limit": 100, "ideal": [30, 70]},
+        {"key": "description", "label": "คำอธิบาย", "limit": 5000, "ideal": [300, 2000], "hashtags": true},
+        {"key": "tags", "label": "แท็ก (คั่นด้วย ,)", "limit": 500, "list": true},
+        {"key": "pinnedComment", "label": "คอมเมนต์ปักหมุด", "limit": 10000, "ideal": [40, 300], "optional": true}
+      ],
+      "hashtags": {"ideal": [2, 3], "max": 15, "note": "3 อันแรกขึ้นเหนือชื่อคลิป · เกิน 60 อัน YouTube ไม่สนแฮชแท็กทั้งหมด"},
+      "tips": "ชื่อคลิป = คำถาม/ตัวเลขจาก hook · 2 บรรทัดแรกของคำอธิบายคือส่วนที่เห็นก่อนกด 'เพิ่มเติม' · คลิปแนวตั้ง ≤ 3 นาทีขึ้นเป็น Shorts เอง"
+    },
+    {
+      "id": "tiktok", "name": "TikTok", "formats": ["portrait-9x16"],
+      "fields": [
+        {"key": "caption", "label": "แคปชัน", "limit": 4000, "ideal": [60, 300], "hashtags": true}
+      ],
+      "hashtags": {"ideal": [3, 5], "max": 10},
+      "tips": "ประโยคแรกต้องต่อจาก hook ในคลิป ไม่ซ้ำคำพูด · ถามคำถามให้คนคอมเมนต์ · แฮชแท็กเฉพาะเรื่อง 3–5 อัน"
+    },
+    {
+      "id": "instagram", "name": "Instagram Reels", "formats": ["portrait-9x16"],
+      "fields": [
+        {"key": "caption", "label": "แคปชัน", "limit": 2200, "ideal": [80, 500], "hashtags": true}
+      ],
+      "hashtags": {"ideal": [3, 5], "max": 5, "note": "Instagram จำกัด 5 แฮชแท็กต่อโพสต์ (ตั้งแต่ปลาย 2025)"},
+      "tips": "125 ตัวอักษรแรกคือส่วนที่เห็นก่อนกด 'เพิ่มเติม' · ใส่ที่มาแบบย่อ"
+    },
+    {
+      "id": "facebook", "name": "Facebook", "formats": ["landscape-16x9", "portrait-9x16"],
+      "fields": [
+        {"key": "text", "label": "ข้อความโพสต์", "limit": 63206, "ideal": [80, 600], "hashtags": true}
+      ],
+      "hashtags": {"ideal": [0, 3], "max": 5},
+      "tips": "เล่าเป็นย่อหน้าสั้น ๆ ได้ยาวกว่าที่อื่น · ~3 บรรทัดแรกคือส่วนที่เห็นก่อนกด 'ดูเพิ่มเติม' · ใส่ที่มา"
+    },
+    {
+      "id": "x", "name": "X (Twitter)", "formats": ["landscape-16x9", "portrait-9x16"],
+      "fields": [
+        {"key": "text", "label": "โพสต์", "limit": 280, "ideal": [80, 240], "hashtags": true},
+        {"key": "thread", "label": "เธรดต่อ (โพสต์ละบรรทัด)", "limit": 280, "each": true, "optional": true}
+      ],
+      "hashtags": {"ideal": [0, 2], "max": 3},
+      "tips": "บัญชีฟรีโพสต์ละ 280 ตัวอักษร (ลิงก์นับ 23) · ตัวเลขที่แรงที่สุดขึ้นก่อน"
+    }
+  ]
+}

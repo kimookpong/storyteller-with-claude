@@ -1,0 +1,66 @@
+{
+  "id": "shorts-punch",
+  "name": "คลิปสั้น จังหวะเร็ว (Shorts Punch)",
+  "summary": "สำหรับ TikTok/Reels/Shorts 30 วิ – 1 นาที: ตัดเร็ว 1.2–2.5 วิ ภาพขยับตั้งแต่เฟรมแรก ≤ 2 ยุค ตัวเลขใหญ่กลางจอ",
+  "guide": "rules/02-story-structure.md",
+  "shotSec": {
+    "min": 1.4,
+    "max": 2.4,
+    "hardMax": 4
+  },
+  "mix": {
+    "parallax": [
+      20,
+      35
+    ],
+    "vector": [
+      20,
+      40
+    ],
+    "collage": [
+      5,
+      20
+    ],
+    "data": [
+      20,
+      35
+    ],
+    "title": [
+      0,
+      10
+    ]
+  },
+  "maxParallaxRun": 3,
+  "eras": [
+    "prehistoric",
+    "ancient",
+    "medieval",
+    "early-modern",
+    "1800s",
+    "early-1900s",
+    "mid-century",
+    "80s-90s",
+    "2000s",
+    "present",
+    "future"
+  ],
+  "maxEras": 2,
+  "subtitles": true,
+  "audio": {
+    "music": {
+      "modern": "audio/music/lofi-pad.wav",
+      "vintage": "audio/music/lofi-pad-vintage.wav"
+    },
+    "musicGap": 0.4,
+    "musicUnderVo": 0.12,
+    "sfx": true,
+    "sfxVolume": 0.34
+  },
+  "render": "vector",
+  "image": {
+    "model": "google/gemini-2.5-flash-image",
+    "cutoutModel": "google/gemini-2.5-flash-image",
+    "cutout": "chroma",
+    "prompt": "Bold flat vector-style illustration, high contrast, vibrant saturated colors on deep navy (#0E1A2B), big simple shapes readable on a small phone screen, rounded friendly style, no outlines"
+  }
+}

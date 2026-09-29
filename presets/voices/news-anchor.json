@@ -1,0 +1,39 @@
+{
+  "id": "news-anchor",
+  "name": "ผู้ประกาศข่าว กระชับ",
+  "summary": "น้ำเสียงหนักแน่น ชัด เร็วปานกลาง เล่าแบบสรุปข่าว เป็นกลาง ไม่ใส่อารมณ์ — เหมาะกับเรื่องเหตุการณ์ การเมือง เศรษฐกิจ",
+  "guide": "presets/voices/news-anchor.md",
+  "persona": {
+    "gender": "female",
+    "pronoun": "เรา",
+    "particles": [],
+    "polite": null,
+    "banned": [
+      "กู",
+      "มึง",
+      "ท่านผู้ชม",
+      "คุณผู้ชม",
+      "ครับ",
+      "ค่ะ"
+    ],
+    "limits": {}
+  },
+  "tts": {
+    "model": "google/gemini-3.8-flash-tts",
+    "voice": "Kore",
+    "style": "Professional Thai news anchor: firm, clear and neutral, steady brisk pace, crisp consonants, confident and trustworthy, slight emphasis on key facts and numbers. No drama, no smile in the voice.",
+    "gapMs": 120,
+    "paraGapMs": 600,
+    "audition": [
+      "Kore",
+      "Orus",
+      "Alnilam",
+      "Schedar",
+      "Rasalgethi",
+      "Erinome"
+    ],
+    "auditionText": "ปี 1511 ศาลที่เมกกะออกคำสั่งห้ามดื่มกาแฟ แต่คำสั่งดังกล่าว ถูกยกเลิกภายในเวลาไม่นาน"
+  },
+  "charsPerSec": 11.5,
+  "calibrated": null
+}
