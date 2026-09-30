@@ -4,6 +4,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {loadSettings, settingsFingerprint, resolve as resolveSettings} from '../../scripts/lib/settings.mjs';
+import {assetsFingerprint} from '../../scripts/lib/assetmap.mjs';
+
+/** stage ที่ขึ้นกับภาพที่ใช้จริง — เลือกรูป/นำเข้า/จับคู่ asset ใหม่ → ล้าสมัย (rule 16) */
+const ASSET_STAGES = ['preview', 'qa', 'cover'];
+const safeAfp = (slug) => { try { return assetsFingerprint(slug); } catch { return null; } };
 
 export const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
 export const P = (...xs) => path.join(ROOT, ...xs);
@@ -57,7 +62,8 @@ const stageFingerprint = (slug, st) => {
   if (st.key === 'shots') {
     if (!shots) return null;
     const {covers, ...rest} = shots; // ปกแยกเป็น stage ของตัวเอง
-    return sha(JSON.stringify(rest));
+    // stage 6 ใส่ภาพ AI แบบ img:<id>|<vector> แทน vector เดิม — ไม่นับว่า shot list เปลี่ยน (ภาพ/กล้อง/เวลาเหมือนเดิม)
+    return sha(JSON.stringify(rest).replace(/"img:[a-z0-9-]+\|([^"|]+)"/g, '"$1"'));
   }
   if (st.key === 'voice') {
     const vd = P('public', slug, 'vo');
@@ -79,6 +85,14 @@ const stageFingerprint = (slug, st) => {
   if (st.key === 'qa') return 'qa';
   return null;
 };
+/** fingerprint แบบเดิมของ shot list (ก่อนตัด img:) — อนุมัติที่บันทึกด้วยวิธีเดิมยังนับว่าตรง */
+const legacyFingerprint = (slug, st) => {
+  if (st.key !== 'shots') return null;
+  const shots = loadShots(slug);
+  if (!shots) return null;
+  const {covers, ...rest} = shots;
+  return sha(JSON.stringify(rest));
+};
 
 export const statusPath = (slug) => P('projects', slug, 'status.json');
 export const loadStatus = (slug) => {
@@ -96,6 +110,7 @@ export const deriveStages = (slug) => {
   const status = loadStatus(slug);
   const settings = loadSettings(slug);
   let dirty = false;
+  const afp = safeAfp(slug);
   const out = STAGES.map((st) => {
     const rec = status.stages[st.key] ?? {};
     const fp = stageFingerprint(slug, st);
@@ -104,9 +119,13 @@ export const deriveStages = (slug) => {
     let staleBy = null;
     if (state === 'approved') {
       if (!rec.hash && fp) { rec.hash = fp; status.stages[st.key] = rec; dirty = true; } // อนุมัติก่อนมีระบบ hash
-      else if (rec.hash && fp && rec.hash !== fp && st.key !== 'qa') { state = 'stale'; staleBy = 'file'; }
+      else if (rec.hash && fp && rec.hash !== fp && st.key !== 'qa' && rec.hash !== legacyFingerprint(slug, st)) { state = 'stale'; staleBy = 'file'; }
       if (sfp && !rec.settingsHash) { rec.settingsHash = sfp; status.stages[st.key] = rec; dirty = true; }
       else if (sfp && rec.settingsHash !== sfp) { state = 'stale'; staleBy = staleBy ?? 'settings'; }
+      if (ASSET_STAGES.includes(st.key) && afp) {
+        if (!rec.assetsHash) { rec.assetsHash = afp; status.stages[st.key] = rec; dirty = true; } // อนุมัติก่อนมีระบบนี้
+        else if (rec.assetsHash !== afp) { state = 'stale'; staleBy = staleBy ?? 'assets'; }
+      }
     }
     if (!state) state = fp ? 'review' : 'todo';
     return {...st, state, staleBy, at: rec.at ?? null, note: rec.note ?? null, exists: !!fp};
@@ -121,7 +140,7 @@ export const setStage = (slug, key, state, note) => {
   if (!['todo', 'draft', 'review', 'approved'].includes(state)) throw new Error('สถานะไม่ถูกต้อง');
   const status = loadStatus(slug);
   const sfp = settingsFingerprint(loadSettings(slug), key);
-  status.stages[key] = {state, at: new Date().toISOString(), by: 'user', ...(note ? {note} : {}), ...(state === 'approved' ? {hash: stageFingerprint(slug, st), ...(sfp ? {settingsHash: sfp} : {})} : {})};
+  status.stages[key] = {state, at: new Date().toISOString(), by: 'user', ...(note ? {note} : {}), ...(state === 'approved' ? {hash: stageFingerprint(slug, st), ...(sfp ? {settingsHash: sfp} : {}), ...(ASSET_STAGES.includes(key) ? {assetsHash: safeAfp(slug)} : {})} : {})};
   saveStatus(slug, status);
 };
 

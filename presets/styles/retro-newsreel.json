@@ -56,5 +56,10 @@
     "cutoutModel": "google/gemini-2.5-flash-image",
     "cutout": "chroma",
     "prompt": "Vintage newspaper and newsreel illustration, halftone print texture, black-and-white with faded yellow paper tones, film grain, retro typography-free collage cut-outs"
+  },
+  "refs": {
+    "collage": 0.8,
+    "parallax": 0.2,
+    "_note": "สัดส่วนช็อต collage/parallax ที่ควรใช้ภาพจริง (rule 15) — 0 = สไตล์นี้ไม่ใช้ภาพจริง"
   }
 }

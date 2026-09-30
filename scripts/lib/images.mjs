@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {ROOT} from './settings.mjs';
+import {importsMap} from './imports.mjs';
 
 const R = (...xs) => path.join(ROOT, ...xs);
 const readJson = (f, d = null) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return d; } };
@@ -28,8 +29,25 @@ export const imageSize = (file) => {
   return null;
 };
 
-/** {id: {src, aspect, kind}} ของรูปที่ "เลือกแล้ว" เท่านั้น (src = path ใน public/) */
-export const imagesMap = (slug) => {
+// ---------- ภาพจริงจากการค้นคว้า (scripts/refs.py · rules/15-research-images.md) ----------
+export const refsSpec = (slug) => readJson(R('projects', slug, 'refs.json'));
+export const refsLock = (slug) => readJson(R('projects', slug, 'refs.lock.json'), {refs: {}});
+/** ref ที่ใช้ได้จริง = license ไม่ blocked + มีไฟล์ + ผู้ใช้กด "ใช้รูปนี้" แล้ว */
+export const refUsable = (r) => !!r && r.status !== 'blocked' && r.status !== 'error' && r.approved === true && !!r.file && fs.existsSync(R('public', r.file));
+/** {"ref:<id>": {src, aspect, kind: 'photo', credit}} */
+export const refsMap = (slug) => {
+  const out = {};
+  for (const [id, r] of Object.entries(refsLock(slug).refs ?? {})) {
+    if (!refUsable(r)) continue;
+    const sz = imageSize(R('public', r.file));
+    out[`ref:${id}`] = {src: r.file, aspect: sz ? sz.h / sz.w : 0.75, kind: 'photo', credit: `${r.author} · ${r.license}`};
+  }
+  return out;
+};
+
+/** {id: {src, aspect, kind}} ของรูปที่ "เลือกแล้ว" เท่านั้น (src = path ใน public/) + ภาพจริงที่อนุมัติแล้ว (key "ref:<id>") */
+export const imagesMap = (slug) => ({...aiImagesMap(slug), ...refsMap(slug), ...importsMap(slug)});
+const aiImagesMap = (slug) => {
   const spec = imagesSpec(slug);
   const lock = imagesLock(slug);
   const kinds = Object.fromEntries((spec?.images ?? []).map((x) => [x.id, x.kind ?? 'cutout']));

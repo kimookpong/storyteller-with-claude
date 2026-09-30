@@ -24,7 +24,7 @@ export const formatOf = (p: {meta: {width: number; height: number}; settings?: a
 export const FormatContext = React.createContext<FormatCfg>(LANDSCAPE);
 
 /** รูปจาก AI (scripts/imagegen.py → public/<slug>/img/<id>.png) — render.mjs ใส่ให้จาก images.lock.json */
-export type ImageInfo = {src: string; aspect: number; kind?: 'plate' | 'cutout' | 'texture'};
+export type ImageInfo = {src: string; aspect: number; kind?: 'plate' | 'cutout' | 'texture' | 'photo' | 'logo'; credit?: string};
 export const ImagesContext = React.createContext<Record<string, ImageInfo>>({});
 export const useImages = () => React.useContext(ImagesContext);
 export const useFormat = () => React.useContext(FormatContext);

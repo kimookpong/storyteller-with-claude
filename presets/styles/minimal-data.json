@@ -62,5 +62,10 @@
     "cutoutModel": "google/gemini-2.5-flash-image",
     "cutout": "chroma",
     "prompt": "Minimal flat illustration, lots of negative space, simple geometric icons, deep navy background (#0E1A2B) with one or two accent colors (#FFC94A, #3FD6C6), clean and calm"
+  },
+  "refs": {
+    "collage": 0.3,
+    "parallax": 0,
+    "_note": "สัดส่วนช็อต collage/parallax ที่ควรใช้ภาพจริง (rule 15) — 0 = สไตล์นี้ไม่ใช้ภาพจริง"
   }
 }

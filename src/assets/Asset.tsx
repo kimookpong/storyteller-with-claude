@@ -11,9 +11,12 @@ export const NO_CUT = new Set(['sky', 'bg-color', 'paper-bg', 'dust', 'leaves-fg
 
 /** "img:<id>" หรือ "img:<id>|<vector-fallback>" — fallback ใช้จนกว่าจะเลือกรูป AI (ไม่มีกล่องเหลืองระหว่างรอ) */
 export const parseImg = (name: string) => {
-  if (!name.startsWith('img:')) return null;
-  const [id, fallback] = name.slice(4).split('|');
-  return {id, fallback: fallback || null};
+  // "ref:<id>|<fallback>" = ภาพจริงจากการค้นคว้า (rule 15) — เก็บใน project.images ด้วย key "ref:<id>"
+  // "user:<id>|<fallback>" = asset ที่ผู้ใช้นำเข้าเอง (rule 16) — key "user:<id>"
+  const m = name.match(/^(img|ref|user):(.*)$/);
+  if (!m) return null;
+  const [id, fallback] = m[2].split('|');
+  return {id: m[1] === 'img' ? id : `${m[1]}:${id}`, fallback: fallback || null};
 };
 
 let uidN = 0;
@@ -25,6 +28,20 @@ export const Asset: React.FC<{name: string; style?: 'vector' | 'collage'; t: num
   const pi = parseImg(name);
   if (pi) {
     const im = images[pi.id];
+    if (im && im.kind === 'photo') {
+      // ภาพจริงแบบ collage: กรอบกระดาษขาว + เงาลอย (ไม่ตัดพื้นหลัง · ไม่ดัดแปลงเนื้อภาพนอกจาก tone)
+      const pad = Math.max(4, width * 0.035);
+      const tone = style === 'collage' ? 'sepia(0.3) saturate(0.85) contrast(1.05)' : 'saturate(0.95)';
+      return (
+        <div style={{width, height: width * im.aspect, boxSizing: 'border-box', padding: pad, background: '#FBF6EC', boxShadow: `0 ${pad}px ${pad * 2.5}px rgba(0,0,0,0.35)`}}>
+          <Img src={staticFile(im.src)} style={{width: '100%', height: '100%', display: 'block', objectFit: 'cover', filter: tone}} />
+        </div>
+      );
+    }
+    if (im && im.kind === 'logo') {
+      // โลโก้ของผู้ใช้: แสดงตามจริง ไม่ใส่ tone/filter
+      return <Img src={staticFile(im.src)} style={{width, height: width * im.aspect, display: 'block', objectFit: 'contain'}} />;
+    }
     if (im) {
       const vintage = style === 'collage' ? {filter: 'sepia(0.35) saturate(0.85) contrast(1.05)'} : {};
       return <Img src={staticFile(im.src)} style={{width, height: width * im.aspect, display: 'block', objectFit: 'cover', ...vintage}} />;

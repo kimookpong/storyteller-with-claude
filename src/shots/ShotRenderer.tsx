@@ -8,6 +8,8 @@ import {SourceLine, Subtitles, TextLayer} from '../text/ThaiText';
 import {ERAS} from '../era/eras';
 import type {SubMode} from '../text/subchunks';
 import {C} from '../theme/tokens';
+import {useImages} from '../format';
+import {parseImg} from '../assets/Asset';
 
 export const ShotRenderer: React.FC<{shot: Shot; era: Era; dur: number; subtitle: string; subtitleEn?: string; subMode?: SubMode; sources: Record<string, string>; showSubs: boolean}> = ({shot, era, dur, subtitle, subtitleEn, subMode = 'th', sources, showSubs}) => {
   const frame = useCurrentFrame();
@@ -16,6 +18,10 @@ export const ShotRenderer: React.FC<{shot: Shot; era: Era; dur: number; subtitle
   const d = dur / fps;
   const ref = (shot.data as any)?.sourceRef ?? shot.text?.find((x) => x.sourceRef)?.sourceRef;
   const isMap = shot.data?.chart === 'map';
+  const images = useImages();
+  // เครดิตภาพจริง (rule 15) ต่อท้ายบรรทัดที่มา
+  const credits = shot.layers.map((l) => parseImg(l.asset)).filter((p) => p && images[p.id]?.credit).map((p) => images[p!.id].credit).filter(Boolean);
+  const srcText = [ref ? sources[ref] : '', credits.length ? `ภาพ: ${[...new Set(credits)].join(' · ')}` : ''].filter(Boolean).join(' · ') || undefined;
   return (
     <AbsoluteFill style={{background: shot.bg ?? C.bgDeep, overflow: 'hidden'}}>
       {isMap && <DataLayer d={shot.data!} t={t} dur={d} fps={fps} era={era} />}
@@ -23,7 +29,7 @@ export const ShotRenderer: React.FC<{shot: Shot; era: Era; dur: number; subtitle
       <EraTexture era={era} />
       {shot.data && !isMap && <DataLayer d={shot.data} t={t} dur={d} fps={fps} era={era} />}
       <TextLayer items={shot.text} t={t} fps={fps} vintage={ERAS[era].vintage} />
-      <SourceLine text={ref ? sources[ref] : undefined} />
+      <SourceLine text={srcText} />
       {showSubs && subMode !== 'off' && <Subtitles text={subtitle} textEn={subtitleEn} mode={subMode} t={t} dur={d} />}
     </AbsoluteFill>
   );

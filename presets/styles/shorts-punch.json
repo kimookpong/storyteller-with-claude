@@ -62,5 +62,10 @@
     "cutoutModel": "google/gemini-2.5-flash-image",
     "cutout": "chroma",
     "prompt": "Bold flat vector-style illustration, high contrast, vibrant saturated colors on deep navy (#0E1A2B), big simple shapes readable on a small phone screen, rounded friendly style, no outlines"
+  },
+  "refs": {
+    "collage": 0.6,
+    "parallax": 0.1,
+    "_note": "สัดส่วนช็อต collage/parallax ที่ควรใช้ภาพจริง (rule 15) — 0 = สไตล์นี้ไม่ใช้ภาพจริง"
   }
 }

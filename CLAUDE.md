@@ -38,6 +38,8 @@ Output ของระบบมี 2 ส่วน:
 - @rules/12-cover.md — ปก YouTube (thumbnail)
 - @rules/13-ui-protocol.md — ทำงานคู่กับหน้า HistoryTeller (status.json / feedback.jsonl)
 - @rules/14-post.md — ข้อความโพสต์ลงแพลตฟอร์ม (post.json)
+- @rules/15-research-images.md — ภาพจริงจากการค้นคว้า (refs.json · license)
+- @rules/16-user-assets.md — asset ที่ผู้ใช้นำเข้าเอง (`user:<id>` · อ่านคำอธิบายก่อนทำ stage 5/6) · asset ใหม่หลังเริ่มงาน: ใช้แทน (`asset-map.json`) / ใส่เพิ่ม (feedback `user:<id>` — ห้ามแก้บท)
 
 ## คำสั่ง
 ```
@@ -52,6 +54,9 @@ npm run audio       # สร้างเพลงประกอบ + SFX ขอ
 npm run eras        # ภาพตัวอย่างพื้นผิวทุกยุค → out/eras/
 npm run cover       # ปก YouTube ทุกแบบ → out/cover/*.jpg (1280×720) + *-mobile.png
 python scripts/imagegen.py <slug> [--only id] [--dry-run]   # ภาพ AI จาก images.json (OpenRouter) → เลือกในหน้า Asset list
+python3 scripts/refs.py <slug>   # ภาพจริงจาก refs.json: ตรวจ license จาก API + ดาวน์โหลด → public/<slug>/ref/
+node scripts/import-asset.mjs list <slug>   # asset ที่ผู้ใช้นำเข้า (โปรเจกต์ + คลังกลาง) พร้อมคำอธิบาย — ดูก่อนทำ shot/asset list
+node scripts/asset-plan.mjs <slug>   # แนะนำ vector / PNG ต่อ asset (ขนาดบนจอ · จำนวนช็อต · props ที่ขยับ · style)
 node scripts/post.mjs <slug>   # ข้อความโพสต์: ข้อมูลตั้งต้น (--kit) + ตรวจ post.json + out/<slug>-post.md
 node scripts/subs.mjs <slug>   # ไฟล์ซับ .srt/.vtt ไทย (+อังกฤษถ้ามี voEn) จากเวลาจริงของเสียง
 python scripts/tts.py --audition --slug <slug>             # ลองเสียงตาม voice preset ของโปรเจกต์

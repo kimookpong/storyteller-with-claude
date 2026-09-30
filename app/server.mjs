@@ -9,9 +9,15 @@ import {
   loadFeedback, addFeedback, updateFeedback, voInfo, stillsInfo, coversInfo, docs, summary, splitByCue, speakChars, writeAtomic,
 } from './lib/project.mjs';
 import {BIN, listOutputs, probe} from './lib/media.mjs';
-import {JOBS, startJob, cancelJob, listJobs, getJob, onJobEvent} from './lib/jobs.mjs';
+import {JOBS, startJob, cancelJob, listJobs, getJob, onJobEvent, running} from './lib/jobs.mjs';
 import {qaReport, MANUAL} from './lib/qa.mjs';
-import {imagesSpec, imagesLock} from '../scripts/lib/images.mjs';
+import {imagesSpec, imagesLock, refsSpec, refsLock, refUsable} from '../scripts/lib/images.mjs';
+import {trashProject, listTrash, restoreTrash, purgeTrash} from './lib/trash.mjs';
+import {planAssets} from '../scripts/lib/assetplan.mjs';
+import {loadAssetMap, saveAssetMap, mapImpact, entryOf, TARGET_RE, KEY_RE} from '../scripts/lib/assetmap.mjs';
+import {assetUsage} from './lib/assetusage.mjs';
+import {assetLib} from './lib/assetlib.mjs';
+import {addImport, updateImport, removeImport, availableImports, KINDS, ID_RE} from '../scripts/lib/imports.mjs';
 import {listPresets, loadSettings, resolve as resolveSettings, budget, describe, settingsPath, supportedEras, DEFAULTS, LENGTH_CHOICES, SUB_MODES, settingsFingerprint} from '../scripts/lib/settings.mjs';
 import {assemble as assemblePost} from '../scripts/lib/post.mjs';
 
@@ -74,9 +80,9 @@ const send = (res, code, body, type = 'application/json; charset=utf-8') => {
   res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
 };
 const fail = (res, code, msg) => send(res, code, {error: msg});
-const readBody = (req) => new Promise((resolve, reject) => {
+const readBody = (req, max = 1e6) => new Promise((resolve, reject) => {
   let b = '';
-  req.on('data', (d) => { b += d; if (b.length > 1e6) { reject(new Error('body ใหญ่เกิน')); req.destroy(); } });
+  req.on('data', (d) => { b += d; if (b.length > max) { reject(new Error('body ใหญ่เกิน')); req.destroy(); } });
   req.on('end', () => { try { resolve(b ? JSON.parse(b) : {}); } catch { reject(new Error('JSON ไม่ถูกต้อง')); } });
 });
 const safeRel = (rel) => {
@@ -155,6 +161,45 @@ const imagesInfo = (slug) => {
   };
 };
 
+/** ตารางจับคู่ asset + รายชื่อ vector ที่ช็อตใช้ (ตัวเลือก "ใช้แทน…") */
+const SKIP_VEC = new Set(['bg-color', 'paper-bg', 'dust', 'light-rays', 'marker-circle', 'arrow']);
+const assetMapInfo = (slug) => {
+  const map = loadAssetMap(slug);
+  const count = {};
+  for (const s of loadShots(slug)?.scenes ?? []) for (const sh of s.shots) for (const l of sh.layers ?? []) {
+    const m = l.asset.match(/^(?:(?:img|ref|user):[^|]+\|)?([a-z0-9][a-z0-9-]*)$/);
+    const v = m ? m[1] : null;
+    if (v && !SKIP_VEC.has(v) && !l.asset.startsWith('placeholder:')) count[v] = (count[v] ?? 0) + 1;
+  }
+  return {entries: Object.entries(map).map(([from, v]) => ({from, ...entryOf(v)})),
+    vectors: Object.entries(count).sort((a, b) => b[1] - a[1]).map(([name, n]) => ({name, n}))};
+};
+
+/** asset ที่ผู้ใช้นำเข้า (rule 16) + ช็อตที่ใช้ */
+const importsInfo = (slug) => {
+  const used = {};
+  for (const s of loadShots(slug)?.scenes ?? []) for (const sh of s.shots) for (const l of sh.layers ?? []) if (l.asset.startsWith('user:')) (used[l.asset.slice(5).split('|')[0]] ??= []).push(sh.id);
+  const map = loadAssetMap(slug);
+  const replaces = (id) => Object.entries(map).filter(([, v]) => entryOf(v)?.to === `user:${id}`).map(([k]) => k);
+  return {kinds: KINDS, items: availableImports(slug).map((x) => ({...x, path: `public/${x.file}`, mtime: fs.statSync(P('public', x.file)).mtimeMs, usedIn: used[x.id] ?? [], replaces: replaces(x.id)}))};
+};
+
+/** ภาพจริงจากการค้นคว้า (refs.json + refs.lock.json · rule 15) */
+const refsInfo = (slug) => {
+  const spec = refsSpec(slug);
+  if (!spec) return null;
+  const lock = refsLock(slug).refs ?? {};
+  const used = {};
+  for (const s of loadShots(slug)?.scenes ?? []) for (const sh of s.shots) for (const l of sh.layers ?? []) if (l.asset.startsWith('ref:')) (used[l.asset.slice(4).split('|')[0]] ??= []).push(sh.id);
+  return (spec.refs ?? []).map((x) => {
+    const r = lock[x.id] ?? null;
+    const f = r?.file && fs.existsSync(P('public', r.file)) ? `public/${r.file}` : null;
+    return {id: x.id, provider: x.provider, want: x.file ?? x.key ?? '', use: x.use ?? 'onscreen', factRef: x.factRef ?? null, note: x.note ?? '', usedIn: used[x.id] ?? [],
+      status: r?.status ?? 'new', error: r?.error ?? null, flags: r?.flags ?? [], title: r?.title ?? null, author: r?.author ?? null, license: r?.license ?? null,
+      licenseUrl: r?.licenseUrl ?? null, sourceUrl: r?.sourceUrl ?? null, file: f, mtime: f ? fs.statSync(P(f)).mtimeMs : null, approved: r?.approved === true, usable: refUsable(r)};
+  });
+};
+
 const projectDetail = (slug) => {
   const shots = loadShots(slug);
   const status = loadStatus(slug);
@@ -181,6 +226,11 @@ const projectDetail = (slug) => {
     settings: settingsInfo(slug),
     audition: auditionInfo(slug),
     images: imagesInfo(slug),
+    refs: refsInfo(slug),
+    imports: importsInfo(slug),
+    assetMap: assetMapInfo(slug),
+    assetPlan: (() => { try { return planAssets(slug); } catch { return null; } })(),
+    assetUsage: (() => { try { return assetUsage(slug); } catch { return null; } })(),
     post: postInfo(slug),
     eraSamples: fs.existsSync(P('out', 'eras')) ? fs.readdirSync(P('out', 'eras')).filter((x) => x.endsWith('.png')).map((x) => ({era: x.replace(/\.png$/, ''), path: `out/eras/${x}`, mtime: fs.statSync(P('out', 'eras', x)).mtimeMs})) : [],
   };
@@ -259,7 +309,7 @@ route('POST', /^\/api\/p\/([a-z0-9-]+)\/feedback$/, async (req, m) => {
   const b = await readBody(req);
   const target = String(b.target ?? 'project');
   const text = String(b.text ?? '').trim();
-  if (!/^(project|brief|research|beats|script|assets|stage:[a-z]+|post|post:[a-z]+|scene:S\d+|shot:S\d+-\d+|vo:S\d+|cover:[A-Z]|qa:[a-z]+)$/.test(target)) throw Object.assign(new Error('target ไม่ถูกต้อง'), {code: 400});
+  if (!/^(project|brief|research|beats|script|assets|stage:[a-z]+|post|post:[a-z]+|ref:[a-z0-9-]+|user:[a-z0-9-]+|asset:[a-z0-9-]+|img:[a-z0-9-]+|scene:S\d+|shot:S\d+-\d+|vo:S\d+|cover:[A-Z]|qa:[a-z]+)$/.test(target)) throw Object.assign(new Error('target ไม่ถูกต้อง'), {code: 400});
   if (!text) throw Object.assign(new Error('ข้อความว่าง'), {code: 400});
   return addFeedback(m[1], target, text.slice(0, 4000));
 });
@@ -290,6 +340,68 @@ route('GET', /^\/api\/p\/([a-z0-9-]+)\/outputs$/, async (_req, m) => {
   const outs = listOutputs(m[1]);
   // วัดความดังไฟล์ใน out/ และไฟล์ master ทุกที่ (ไฟล์อื่นวัดแค่ความยาว/มีเสียง)
   return Promise.all(outs.map(async (o) => ({...o, ...(await probe(o.path, {loudness: o.dir === 'out' || o.master}))})));
+});
+route('POST', /^\/api\/p\/([a-z0-9-]+)\/refs\/approve$/, async (req, m) => {
+  const b = await readBody(req);
+  const slug = m[1];
+  const f = P('projects', slug, 'refs.lock.json');
+  const lock = refsLock(slug);
+  const r = lock.refs?.[b.id];
+  if (!r) throw Object.assign(new Error('ยังไม่ได้ดาวน์โหลดรูปนี้'), {code: 404});
+  if (b.approved && (r.status === 'blocked' || r.status === 'error' || !r.file)) throw Object.assign(new Error('รูปนี้ใช้ไม่ได้ (license/ไฟล์)'), {code: 400});
+  r.approved = !!b.approved;
+  r.approvedAt = new Date().toISOString();
+  writeAtomic(f, JSON.stringify(lock, null, 1) + '\n');
+  return {ok: true};
+});
+// ---------- asset ที่ผู้ใช้นำเข้า (rule 16) ----------
+const importScope = (slug, b) => (b.scope === 'library' ? null : slug);
+route('POST', /^\/api\/p\/([a-z0-9-]+)\/imports$/, async (req, m) => {
+  const b = await readBody(req, 30e6);
+  const mm = String(b.data ?? '').match(/^data:image\/(png|jpe?g|webp);base64,(.+)$/);
+  if (!mm) throw Object.assign(new Error('รองรับเฉพาะ PNG / JPEG / WebP'), {code: 400});
+  return addImport(importScope(m[1], b), Buffer.from(mm[2], 'base64'), b);
+});
+route('POST', /^\/api\/p\/([a-z0-9-]+)\/imports\/([a-z0-9-]+)$/, async (req, m) => {
+  const b = await readBody(req);
+  if (!ID_RE.test(m[2])) throw Object.assign(new Error('id ไม่ถูกต้อง'), {code: 400});
+  if (b.remove === true) return removeImport(importScope(m[1], b), m[2]);
+  return updateImport(importScope(m[1], b), m[2], b);
+});
+// ---------- ตารางจับคู่ asset (rule 16) ----------
+route('POST', /^\/api\/p\/([a-z0-9-]+)\/asset-map\/preview$/, async (req, m) => {
+  const b = await readBody(req);
+  return mapImpact(m[1], String(b.from ?? ''), String(b.to ?? ''), !!b.keepAnimated);
+});
+route('POST', /^\/api\/p\/([a-z0-9-]+)\/asset-map$/, async (req, m) => {
+  const b = await readBody(req);
+  const from = String(b.from ?? '');
+  if (!KEY_RE.test(from)) throw Object.assign(new Error('ชื่อ asset ไม่ถูกต้อง'), {code: 400});
+  const map = loadAssetMap(m[1]);
+  if (b.remove === true) delete map[from];
+  else {
+    const to = String(b.to ?? '');
+    if (!TARGET_RE.test(to)) throw Object.assign(new Error('ต้องเป็น user:<id> · ref:<id> · img:<id>'), {code: 400});
+    map[from] = b.keepAnimated ? {to, keepAnimated: true} : to;
+  }
+  saveAssetMap(m[1], map);
+  return {ok: true, map};
+});
+// ---------- ลบโปรเจกต์ (ย้ายไปถังขยะ · กู้คืนได้) ----------
+route('POST', /^\/api\/p\/([a-z0-9-]+)\/delete$/, async (req, m) => {
+  const b = await readBody(req);
+  const slug = m[1];
+  if (b.confirm !== slug) throw Object.assign(new Error('พิมพ์ชื่อโปรเจกต์ให้ตรงเพื่อยืนยัน'), {code: 400});
+  const r = running();
+  if (r && r.slug === slug) throw Object.assign(new Error('มีงานของโปรเจกต์นี้กำลังรันอยู่ — หยุดงานก่อน'), {code: 409});
+  return trashProject(slug);
+});
+route('GET', /^\/api\/trash$/, () => listTrash());
+route('POST', /^\/api\/trash\/([a-z0-9-]+)\/restore$/, (_req, m) => restoreTrash(m[1]));
+route('POST', /^\/api\/trash\/([a-z0-9-]+)\/purge$/, async (req, m) => {
+  const b = await readBody(req);
+  if (b.confirm !== true) throw Object.assign(new Error('ต้องยืนยัน'), {code: 400});
+  return purgeTrash(m[1]);
 });
 route('POST', /^\/api\/p\/([a-z0-9-]+)\/images\/select$/, async (req, m) => {
   const b = await readBody(req);
@@ -342,6 +454,11 @@ const server = http.createServer(async (req, res) => {
       clients.add(res);
       req.on('close', () => clients.delete(res));
       return;
+    }
+    if (p === '/asset-lib.js') {
+      const code = await assetLib();
+      res.writeHead(200, {'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store'});
+      return res.end(code);
     }
     if (p.startsWith('/media/')) {
       const rel = safeRel(p.slice(7));

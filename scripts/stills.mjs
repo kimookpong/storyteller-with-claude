@@ -6,10 +6,12 @@ import {renderStill, selectComposition} from '@remotion/renderer';
 import fs from 'node:fs';
 import path from 'node:path';
 import {imagesMap} from './lib/images.mjs';
+import {loadAssetMap, applyAssetMap} from './lib/assetmap.mjs';
 
 const slug = process.env.HT_SLUG || 'coffee-world';
 const project = JSON.parse(fs.readFileSync(`projects/${slug}/shots.json`, 'utf8'));
 project.images = imagesMap(slug); // รูปจาก AI ที่เลือกแล้ว (img:<id>)
+applyAssetMap(project, loadAssetMap(slug)); // ตารางจับคู่ asset (rule 16)
 const frame = Number(process.argv[2] ?? 60);
 const only = process.argv.slice(3);
 const ids = project.scenes.flatMap((s) => s.shots.map((x) => x.id)).filter((id) => !only.length || only.includes(id));

@@ -59,5 +59,10 @@
     "cutoutModel": "google/gemini-2.5-flash-image",
     "cutout": "chroma",
     "prompt": "Paper cut-out collage illustration, vintage print texture, halftone dots, torn paper edges, sepia and muted warm colors, museum-archive mood"
+  },
+  "refs": {
+    "collage": 0.8,
+    "parallax": 0.3,
+    "_note": "สัดส่วนช็อต collage/parallax ที่ควรใช้ภาพจริง (rule 15) — 0 = สไตล์นี้ไม่ใช้ภาพจริง"
   }
 }

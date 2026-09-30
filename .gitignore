@@ -30,3 +30,6 @@ projects/*
 public/*
 !public/audio/
 !public/textures/
+
+# asset ที่ผู้ใช้นำเข้าเข้าคลังกลาง (ภาพส่วนตัว)
+library/

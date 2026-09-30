@@ -109,7 +109,19 @@ export const budget = (res) => {
     return b;
   });
   const actsSec = beats.filter((b) => /^act/.test(b.key)).reduce((a, b) => a + b.sec, 0);
+  // ภาพจริง (rule 15): ช็อตที่ควรมีภาพจริง = จำนวนช็อต × (collage% × refs.collage + parallax% × refs.parallax)
+  // ผู้สมัครที่ค้น = ×1.3 เผื่อ license ไม่ผ่าน/ผู้ใช้ไม่เลือก · ภาพไม่ซ้ำไม่เกิน 30 (คลิปยาวใช้ภาพเดิมซ้ำได้ ≤ 2 ช็อต ครอปต่างกัน)
+  const rf = res.style.refs ?? {collage: 0.6, parallax: 0.1};
+  const nShots = [Math.round(T / sh.max), Math.round(T / sh.min)];
+  const mixAt = (i) => ((res.style.mix.collage?.[i] ?? 0) * rf.collage + (res.style.mix.parallax?.[i] ?? 0) * rf.parallax) / 100;
+  const refShots = [Math.round(nShots[0] * mixAt(0)), Math.round(nShots[1] * mixAt(1))];
+  const refs = {
+    shots: refShots,
+    unique: [Math.min(30, refShots[0]), Math.min(30, refShots[1])],
+    candidates: refShots[1] ? Math.max(3, Math.min(40, Math.ceil(Math.min(30, refShots[1]) * 1.3))) : 0,
+  };
   return {
+    refs,
     targetSec: T,
     acceptSec: [T - tol, T + tol],
     estSec: [Math.round(T * 0.889), T + tol],
@@ -161,6 +173,9 @@ export const describe = (res, b) => {
     `สไตล์: ${res.style.name} — parallax ${res.style.mix.parallax.join('–')}%, collage ${res.style.mix.collage.join('–')}%, data ${res.style.mix.data.join('–')}% · ยุคที่ใช้ได้: ${res.style.eras.join(', ')} (≤ ${res.style.maxEras})`,
     `เสียง: ${res.voice.name} (${res.voice.tts.voice}) · สรรพนาม "${p.pronoun}" · คำลงท้าย: ${p.particles.join(' ') || '— ไม่ใช้'}${p.polite ? ` · "${p.polite.word}" ใช้ได้เฉพาะ ${p.polite.allowedBeats.join(', ')}` : ''} · แนวทาง: ${res.voice.guide}`,
     `เพลง/SFX (rule 08): ${res.style.audio?.music ? `เพลงประกอบ (ยุคเก่า/ใหม่สลับโทนเอง) ดังช่วงว่าง ${res.style.audio.musicGap} · ใต้เสียงพากย์ ${res.style.audio.musicUnderVo}` : 'ไม่มีเพลง'} · SFX ${res.style.audio?.sfx ? `อัตโนมัติตามชนิดช็อต (${res.style.audio.sfxVolume})` : 'ปิด'}`,
+    b.refs.candidates
+      ? `ภาพจริง (rule 15): ใช้บนจอ ~${b.refs.shots[0]}–${b.refs.shots[1]} ช็อต (ภาพไม่ซ้ำ ${b.refs.unique[0]}–${b.refs.unique[1]}) · ค้นผู้สมัครใน refs.json ~${b.refs.candidates} รูป กระจายทุก beat/ยุคที่มีภาพจริง · ยุคที่ไม่มีภาพ license ผ่าน → ใช้ vector ไม่ต้องยัดให้ครบ`
+      : 'ภาพจริง (rule 15): สไตล์นี้ไม่ใช้ภาพจริง',
     `ซับ: ${SUB_MODES[res.subtitles]}${res.subtitles.includes('en') ? ' — บทต้องมีคำแปลอังกฤษ voEn ทุกซีน (cue เดียวกับ vo)' : ''} · ไฟล์ .srt/.vtt ทุกภาษาที่มี`,
     ...b.warnings.filter((w) => !/ยังไม่วัดจริง/.test(w)).map((w) => `⚠ ${w}`),
     'Beat:',

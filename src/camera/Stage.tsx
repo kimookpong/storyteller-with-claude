@@ -100,7 +100,7 @@ export const Stage: React.FC<{shot: Shot; t: number; dur: number; fps: number; e
         // collage cut-out: ขอบกระดาษขาว + เงาลอย (CSS drop-shadow เร็วกว่า SVG filter มาก)
         const o = Math.max(2, 5 * Math.min(1.6, pr.scale));
         const pim = parseImg(l.asset);
-        const cut = l.style === 'collage' && !NO_CUT.has(pim && !images[pim.id] ? pim.fallback ?? l.asset : l.asset) && !(pim && images[pim.id] && (images[pim.id].kind === 'plate' || l.cover))
+        const cut = l.style === 'collage' && !NO_CUT.has(pim && !images[pim.id] ? pim.fallback ?? l.asset : l.asset) && !(pim && images[pim.id] && (images[pim.id].kind === 'plate' || images[pim.id].kind === 'photo' || images[pim.id].kind === 'logo' || l.cover))
           ? `drop-shadow(${o}px 0 0 #FBF6EC) drop-shadow(-${o}px 0 0 #FBF6EC) drop-shadow(0 ${o}px 0 #FBF6EC) drop-shadow(0 -${o}px 0 #FBF6EC) drop-shadow(${o * 1.2}px ${o * 2}px ${o}px rgba(0,0,0,0.3))`
           : '';
         const filter = [cut, eraF !== 'none' ? eraF : '', blur > 0.3 ? `blur(${blur.toFixed(2)}px)` : ''].filter(Boolean).join(' ') || undefined;

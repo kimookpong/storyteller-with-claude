@@ -62,5 +62,10 @@
     "cutoutModel": "google/gemini-2.5-flash-image",
     "cutout": "chroma",
     "prompt": "Flat 2D vector-style illustration with smooth soft gradients, rounded friendly shapes, no outlines, subtle grain, deep navy night palette (#0E1A2B, #1C3350) with warm accents (#FFC94A, #FF6B4A, #3FD6C6), clean and minimal, cinematic depth"
+  },
+  "refs": {
+    "collage": 0.6,
+    "parallax": 0.1,
+    "_note": "สัดส่วนช็อต collage/parallax ที่ควรใช้ภาพจริง (rule 15) — 0 = สไตล์นี้ไม่ใช้ภาพจริง"
   }
 }

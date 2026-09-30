@@ -27,6 +27,7 @@ export const JOBS = {
   subs: {label: 'ไฟล์ซับ .srt/.vtt', steps: (slug) => [['node', ['scripts/subs.mjs', slug]]]},
   master: {label: 'ปรับเสียง −14 LUFS', steps: (slug) => [['node', ['scripts/master.mjs', `out/${slug}.mp4`]]]},
   cover: {label: 'Render ปก YouTube', steps: (slug) => [['node', ['scripts/cover.mjs', slug]]]},
+  refs: {label: 'ดาวน์โหลดภาพจริง + ตรวจ license', needsNet: true, steps: (slug) => [[python(), ['scripts/refs.py', slug]]]},
   post: {label: 'ส่งออกข้อความโพสต์ (.md)', steps: (slug) => [['node', ['scripts/post.mjs', slug]]]},
   eras: {label: 'ภาพตัวอย่างทุกยุค', steps: () => [['node', ['scripts/era-sheet.mjs']]]},
   audition: {

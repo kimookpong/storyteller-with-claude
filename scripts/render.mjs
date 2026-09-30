@@ -6,6 +6,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {loadSettings, resolve, budget} from './lib/settings.mjs';
 import {imagesMap} from './lib/images.mjs';
+import {loadAssetMap, applyAssetMap} from './lib/assetmap.mjs';
 
 const slug = process.argv[2];
 if (!slug || !/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
@@ -16,6 +17,7 @@ export const buildProps = (s) => {
   const project = JSON.parse(fs.readFileSync(`projects/${s}/shots.json`, 'utf8'));
   const r = resolve(loadSettings(s));
   project.images = imagesMap(s);
+  applyAssetMap(project, loadAssetMap(s)); // ตารางจับคู่ asset (rule 16)
   project.settings = {
     targetSec: r.targetSec,
     subtitles: r.subtitles,

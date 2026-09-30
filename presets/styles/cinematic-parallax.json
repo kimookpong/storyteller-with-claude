@@ -62,5 +62,10 @@
     "cutoutModel": "google/gemini-2.5-flash-image",
     "cutout": "chroma",
     "prompt": "Cinematic digital matte painting, dramatic volumetric light, atmospheric depth and haze, rich but controlled colors on deep navy shadows (#0E1A2B) with warm golden highlights (#FFC94A), painterly, epic scale"
+  },
+  "refs": {
+    "collage": 0.6,
+    "parallax": 0.2,
+    "_note": "สัดส่วนช็อต collage/parallax ที่ควรใช้ภาพจริง (rule 15) — 0 = สไตล์นี้ไม่ใช้ภาพจริง"
   }
 }

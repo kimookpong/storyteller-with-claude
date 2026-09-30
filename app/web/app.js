@@ -43,6 +43,8 @@ const copy = async (text) => {
 };
 
 const STATE_TH = {approved: 'อนุมัติแล้ว', review: 'รอคุณตัดสิน', draft: 'Claude กำลังทำ', todo: 'ยังไม่ทำ', stale: 'ล้าสมัย — ไฟล์เปลี่ยนหลังอนุมัติ'};
+const STALE_WHY = {file: 'ไฟล์เปลี่ยนหลังอนุมัติ', settings: 'settings เปลี่ยนหลังอนุมัติ', assets: 'ภาพที่ใช้เปลี่ยน (รูปใหม่ / จับคู่ asset) — render ใหม่'};
+const stateText = (s) => (s.state === 'stale' && s.staleBy ? `ล้าสมัย — ${STALE_WHY[s.staleBy] ?? s.staleBy}` : STATE_TH[s.state]);
 const STATE_MARK = {approved: '✓', review: '!', draft: '…', todo: '', stale: '↻'};
 const ERA_TH = {prehistoric: 'ยุคหิน', ancient: 'โบราณ', medieval: 'ยุคกลาง', 'early-modern': 'ต้นสมัยใหม่', '1800s': '1800s', 'early-1900s': 'ต้น 1900s', 'mid-century': 'กลางศตวรรษ 20', '80s-90s': '80s–90s', '2000s': '2000s', present: 'ปัจจุบัน', future: 'อนาคต'};
 const ERA_COLOR = {prehistoric: '#7A4A22', ancient: '#9A7A2E', medieval: '#8A5A2B', 'early-modern': '#6B4E8C', '1800s': '#9C6B1F', 'early-1900s': '#4A4A4A', 'mid-century': '#B5502F', '80s-90s': '#A0287E', '2000s': '#2F7FA8', present: '#2F5DA8', future: '#5B3FC4'};
@@ -94,7 +96,7 @@ const md = (src) => {
 };
 
 // ---------------- data loading ----------------
-const loadProjects = async () => { S.projects = await api('/api/projects'); };
+const loadProjects = async () => { S.projects = await api('/api/projects'); S.trash = await api('/api/trash').catch(() => []); };
 const loadProject = async () => {
   if (!S.slug) return;
   S.d = await api(`/api/p/${S.slug}`);
@@ -194,7 +196,7 @@ const stageHead = (st, extra = '') => {
   return `
   <div class="stagehead">
     <div class="grow">
-      <div class="eyebrow">Stage ${st.n}${st.checkpoint ? ' · checkpoint' : ''} · <span class="st-${st.state}" style="font-weight:600;color:${{approved: 'var(--ok)', review: 'var(--warn-ink)', stale: 'var(--accent)', draft: 'var(--blue-ink)', todo: 'var(--muted)'}[st.state]}">${STATE_TH[st.state]}</span>${st.at ? ` · ${ago(st.at)}` : ''}</div>
+      <div class="eyebrow">Stage ${st.n}${st.checkpoint ? ' · checkpoint' : ''} · <span class="st-${st.state}" style="font-weight:600;color:${{approved: 'var(--ok)', review: 'var(--warn-ink)', stale: 'var(--accent)', draft: 'var(--blue-ink)', todo: 'var(--muted)'}[st.state]}">${stateText(st)}</span>${st.at ? ` · ${ago(st.at)}` : ''}</div>
       <h1 style="font-size:27px">${esc(st.name)}</h1>
     </div>
     ${extra}${actions}
@@ -387,6 +389,337 @@ const imagesView = () => {
   </div>`;
 };
 
+/** ภาพจริงจากการค้นคว้า (refs.json → scripts/refs.py · rule 15) — ตรวจ license แล้วกด "ใช้รูปนี้" */
+const LIC = {ok: ['ok', 'ใช้ได้'], flag: ['warn', 'ใช้ได้ · ระวัง'], blocked: ['bad', 'ใช้ไม่ได้'], error: ['bad', 'ดึงไม่ได้'], new: ['plain', 'ยังไม่ดาวน์โหลด']};
+const refsView = () => {
+  const rs = S.d.refs;
+  if (!rs) return `<div class="banner info small"><span class="grow">ยังไม่มีภาพจริง — ถ้าอยากใช้ภาพถ่าย/เอกสาร/แผนที่เก่าในคลิป ให้ Claude เขียน <code>refs.json</code> ตอนค้นคว้า (rules/15-research-images.md)</span></div>`;
+  const nNew = rs.filter((r) => r.status === 'new').length;
+  const nWait = rs.filter((r) => r.file && !r.approved && r.status !== 'blocked').length;
+  const card = (r) => {
+    const [cls, lab] = LIC[r.status] ?? LIC.new;
+    return `<div class="card pad stack refcard" style="gap:8px">
+      <div class="row" style="gap:8px"><b class="mono grow">${esc(r.id)}</b><span class="pill ${cls}">${lab}</span>${r.approved ? '<span class="pill ok">✓ ใช้ในคลิป</span>' : ''}</div>
+      ${r.file ? `<a href="${media(r.file, r.mtime)}" target="_blank" rel="noopener"><img class="refimg" src="${media(r.file, r.mtime)}" alt="${esc(r.title ?? r.id)}" loading="lazy"></a>` : `<div class="refimg ph small muted">${esc(r.provider)} · ${esc(r.want)}</div>`}
+      ${r.title ? `<div class="small"><b>${esc(r.title)}</b> — ${esc(r.author ?? '')}</div>` : ''}
+      ${r.license ? `<div class="small">${r.licenseUrl ? `<a href="${esc(r.licenseUrl)}" target="_blank" rel="noopener">${esc(r.license)}</a>` : esc(r.license)}${r.sourceUrl ? ` · <a href="${esc(r.sourceUrl)}" target="_blank" rel="noopener">หน้าต้นฉบับ</a>` : ''}</div>` : ''}
+      ${mapPanel(`ref:${r.id}`)}
+      ${r.flags.length ? `<div class="small" style="color:var(--warn-ink)">⚑ ${r.flags.map(esc).join(' · ')}</div>` : ''}${r.error ? `<div class="small" style="color:var(--accent-ink)">${esc(r.error)}</div>` : ''}
+      <div class="small muted">${esc(r.note)}${r.factRef ? ` · <span class="pill blue">${esc(r.factRef)}</span>` : ''}${r.usedIn.length ? ` · ใช้ใน ${r.usedIn.map(esc).join(', ')}` : ' · ยังไม่ได้ใช้ในช็อต'}</div>
+      <div class="row" style="gap:6px"><button class="btn sm" data-act="fb-ref" data-id="${esc(r.id)}">ขอเปลี่ยนรูป…</button><span class="grow"></span>
+        ${r.usable && (S.d.assetMap?.vectors ?? []).length ? `<button class="btn sm" data-act="map-open" data-to="ref:${esc(r.id)}">ใช้แทน…</button>` : ''}
+        ${r.file && r.status !== 'blocked' ? (r.approved ? `<button class="btn sm" data-act="ref-approve" data-id="${esc(r.id)}" data-on="0">เลิกใช้</button>` : `<button class="btn sm primary" data-act="ref-approve" data-id="${esc(r.id)}" data-on="1">ใช้รูปนี้</button>`) : ''}</div>
+    </div>`;
+  };
+  // กลุ่มตามสิ่งที่ผู้ใช้ต้องทำ: รอตรวจ → ใช้ในคลิป → ยังไม่ดาวน์โหลด → ใช้ไม่ได้
+  const grp = (r) => r.approved ? 'on' : r.status === 'new' ? 'new' : (r.status === 'blocked' || r.status === 'error' || !r.file) ? 'bad' : 'wait';
+  const GROUPS = [['wait', 'รอคุณตรวจ — กด "ใช้รูปนี้" หรือข้าม'], ['on', 'ใช้ในคลิป'], ['new', 'ยังไม่ดาวน์โหลด'], ['bad', 'ใช้ไม่ได้ / ดึงไม่ได้']];
+  const grid = (xs) => `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">${xs.map(card).join('')}</div>`;
+  return `<div class="stack" style="gap:14px">
+    <div class="row" style="gap:10px;flex-wrap:wrap"><span class="small muted grow">ดึงจาก Wikimedia Commons / Openverse / Met Museum พร้อม license จาก API · <b>ใช้ได้:</b> Public domain, CC0, CC BY · <b>ระวัง:</b> CC BY-SA, Free Art, GFDL · <b>ห้าม:</b> NC, ND, ไม่รู้ license · เครดิตขึ้นจอ/ท้ายโพสต์อัตโนมัติ</span>
+      <button class="btn ${nNew ? 'dark' : ''}" data-act="job" data-job="refs">${nNew ? `ดาวน์โหลด ${nNew} รูป + ตรวจ license` : 'ตรวจ license ใหม่'}</button></div>
+    ${GROUPS.map(([k, label]) => { const xs = rs.filter((r) => grp(r) === k); return xs.length ? `<div class="stack" style="gap:8px"><div class="refgrp">${label} <span class="cnt">${xs.length}</span></div>${grid(xs)}</div>` : ''; }).join('')}
+  </div>`;
+};
+
+/** stage 2 ค้นคว้า — สรุปด้านบน + แท็บ ข้อเท็จจริง / ภาพจริง */
+const factStats = (text) => {
+  const rows = (text ?? '').split('\n').filter((l) => /^\|\s*F\d+\s*\|/.test(l));
+  const conf = {high: 0, mid: 0, low: 0};
+  for (const l of rows) {
+    const c = l.split('|')[4] ?? '';
+    if (/^\s*สูง/.test(c)) conf.high++; else if (/^\s*ต่ำ/.test(c)) conf.low++; else conf.mid++;
+  }
+  const warn = rows.filter((l) => /⚠/.test(l)).length;
+  return {n: rows.length, conf, warn};
+};
+const researchView = (st) => {
+  const rs = S.d.refs ?? [];
+  const fs = factStats(S.d.docs['facts.md']);
+  const rb = S.d.settings?.budget?.refs;
+  const cnt = (f) => rs.filter(f).length;
+  const nOk = cnt((r) => r.file && (r.status === 'ok' || r.status === 'flag'));
+  const nOn = cnt((r) => r.approved);
+  const nWait = cnt((r) => r.file && !r.approved && r.status !== 'blocked' && r.status !== 'error');
+  const nNew = cnt((r) => r.status === 'new');
+  const nBad = cnt((r) => r.status === 'blocked' || r.status === 'error');
+  const tab = S.researchTab ?? 'facts';
+  const stat = (big, label, sub = '', tone = '') => `<div class="rstat ${tone}"><div class="big">${big}</div><div class="small">${label}</div>${sub ? `<div class="small muted">${sub}</div>` : ''}</div>`;
+  const refSub = rb?.candidates ? `งบ: ค้น ~${rb.candidates} · ใช้บนจอ ${rb.shots[0]}–${rb.shots[1]} ช็อต` : 'สไตล์นี้ไม่ใช้ภาพจริง';
+  return `
+  <div class="rstats">
+    ${stat(fs.n, 'ข้อเท็จจริง', `สูง ${fs.conf.high} · กลาง ${fs.conf.mid}${fs.conf.low ? ` · ต่ำ ${fs.conf.low}` : ''}${fs.warn ? ` · ⚠ ${fs.warn}` : ''}`)}
+    ${stat(`${rs.length}${rb?.candidates ? `<span class="of">/${rb.candidates}</span>` : ''}`, 'ภาพจริง (ผู้สมัคร)', refSub, rb?.candidates && rs.length < rb.candidates ? 'soft' : '')}
+    ${stat(nOk, 'license ผ่าน', `${nBad ? `ใช้ไม่ได้ ${nBad}` : ''}${nBad && nNew ? ' · ' : ''}${nNew ? `ยังไม่ดาวน์โหลด ${nNew}` : ''}`)}
+    ${stat(nOn, 'ใช้ในคลิป', nWait ? `รอคุณตรวจ ${nWait}` : '', nWait ? 'warn' : nOn ? 'ok' : '')}
+  </div>
+  <div class="tabs" role="tablist" style="margin:14px 0 12px">
+    <button class="tab ${tab === 'facts' ? 'on' : ''}" role="tab" aria-selected="${tab === 'facts'}" data-act="research-tab" data-k="facts">ข้อเท็จจริง <span class="cnt">${fs.n}</span></button>
+    <button class="tab ${tab === 'refs' ? 'on' : ''}" role="tab" aria-selected="${tab === 'refs'}" data-act="research-tab" data-k="refs">ภาพจริง <span class="cnt">${rs.length}</span>${nWait ? ` <span class="pill warn" style="margin-left:4px">รอตรวจ ${nWait}</span>` : ''}${nNew ? ` <span class="pill plain" style="margin-left:4px">ใหม่ ${nNew}</span>` : ''}</button>
+  </div>
+  ${tab === 'refs' ? refsView() : docView('facts.md', st)}`;
+};
+
+/** asset ที่ผู้ใช้นำเข้าเอง (rule 16) — อัปโหลด + คำอธิบาย ให้ Claude เลือกใช้ในช็อต */
+const importsView = () => {
+  const im = S.d.imports ?? {items: [], kinds: {}};
+  const f = S.drafts;
+  const open = S.importOpen ?? !im.items.length;
+  const kindOpts = Object.entries(im.kinds).map(([k, v]) => `<option value="${k}" ${(f['imp.kind'] ?? 'photo') === k ? 'selected' : ''}>${esc(k)} — ${esc(v)}</option>`).join('');
+  const card = (x) => `<div class="card pad stack" style="gap:8px">
+    <div class="row" style="gap:8px"><b class="mono grow">user:${esc(x.id)}</b><span class="pill plain">${esc(x.kind)}</span><span class="pill ${x.scope === 'library' ? 'blue' : 'plain'}">${x.scope === 'library' ? 'คลังกลาง' : 'โปรเจกต์นี้'}</span></div>
+    <img class="refimg ${x.kind === 'cutout' || x.kind === 'logo' ? 'checker' : ''}" src="${media(x.path, x.mtime)}" alt="${esc(x.title || x.id)}" loading="lazy">
+    ${x.title ? `<div class="small"><b>${esc(x.title)}</b> <span class="muted">${x.width}×${x.height}</span></div>` : `<div class="small muted">${x.width}×${x.height}</div>`}
+    <div class="small">${esc(x.description)}</div>
+    <div class="small muted">ที่มา: ${esc(x.owner)}${x.credit ? ` · เครดิตบนจอ: ${esc(x.credit)}` : ''}${x.tags?.length ? ` · ${x.tags.map(esc).join(', ')}` : ''}</div>
+    <div class="small muted">${x.usedIn.length ? `ใช้ใน ${x.usedIn.map(esc).join(', ')}` : x.replaces?.length ? '' : 'ยังไม่ได้ใช้ในช็อต'}${x.replaces?.length ? `${x.usedIn.length ? ' · ' : ''}ใช้แทน ${x.replaces.map(esc).join(', ')} (ทุกช็อต)` : ''}</div>
+    ${mapPanel(`user:${x.id}`)}
+    <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn sm" data-act="copy-cmd" data-text="user:${esc(x.id)}">คัดลอกรหัส</button>
+      ${(S.d.assetMap?.vectors ?? []).length ? `<button class="btn sm" data-act="map-open" data-to="user:${esc(x.id)}">ใช้แทน…</button>` : ''}
+      ${S.d.hasShots ? `<button class="btn sm" data-act="imp-ask" data-id="${esc(x.id)}">ให้ Claude ใส่…</button>` : ''}
+      <button class="btn sm" data-act="imp-edit" data-id="${esc(x.id)}" data-scope="${x.scope}">แก้คำอธิบาย…</button><span class="grow"></span>
+      <button class="btn sm danger" data-act="imp-remove" data-id="${esc(x.id)}" data-scope="${x.scope}">ลบ</button></div>
+  </div>`;
+  return `<div class="card pad stack" style="gap:12px;margin-bottom:16px">
+    <div class="row" style="gap:10px"><b class="grow">Asset ของคุณ · ${im.items.length} ชิ้น</b><button class="btn ${open ? '' : 'dark'}" data-act="imp-toggle">${open ? 'ปิดฟอร์ม' : '+ นำเข้าภาพ'}</button></div>
+    <div class="small muted">นำเข้าโลโก้ ภาพถ่ายของคุณ หรือภาพที่คุณมีสิทธิ์ใช้ (PNG / JPEG / WebP ≤ 20MB) · <b>คำอธิบายสำคัญที่สุด</b> — Claude อ่านเพื่อตัดสินว่าจะใช้ในช็อตไหน · ใช้ในช็อตด้วย <code>user:&lt;id&gt;</code> หรือสั่ง Claude ในแผงขวา เช่น "ใช้ user:my-logo ในช็อตสุดท้าย"</div>
+    ${open ? `<div class="impform">
+      <label class="f">ไฟล์ภาพ<input type="file" accept="image/png,image/jpeg,image/webp" data-import-file="1">${S.importFile ? `<span class="small muted">เลือกแล้ว: ${esc(S.importFile.name)} (${mb(S.importFile.size)})</span>` : ''}</label>
+      <div class="two"><label class="f">รหัส (id)<input data-draft="imp.id" value="${esc(f['imp.id'] ?? '')}" placeholder="my-logo" class="mono"></label>
+        <label class="f">ชื่อสั้น ๆ<input data-draft="imp.title" value="${esc(f['imp.title'] ?? '')}" placeholder="โลโก้ช่อง"></label></div>
+      <label class="f">คำอธิบาย — ภาพนี้คืออะไร ควรใช้ตอนไหน<textarea rows="3" data-draft="imp.desc" placeholder="เช่น ภาพถ่ายพระธาตุที่ผมถ่ายเองตอนเช้า มุมจากลานวัด ใช้ตอนพูดถึงพระบรมธาตุหรือเปิด/ปิดคลิป">${esc(f['imp.desc'] ?? '')}</textarea></label>
+      <div class="two"><label class="f">ชนิด<select data-draft="imp.kind">${kindOpts}</select></label>
+        <label class="f">ใช้ได้ที่<select data-draft="imp.scope"><option value="project" ${f['imp.scope'] !== 'library' ? 'selected' : ''}>เฉพาะโปรเจกต์นี้</option><option value="library" ${f['imp.scope'] === 'library' ? 'selected' : ''}>คลังกลาง (ทุกโปรเจกต์)</option></select></label></div>
+      <div class="two"><label class="f">ที่มา / สิทธิ์ใช้งาน<input data-draft="imp.owner" value="${esc(f['imp.owner'] ?? '')}" placeholder="ถ่ายเอง · โลโก้ของช่อง · ซื้อ license จาก …"></label>
+        <label class="f">เครดิตบนจอ (ไม่บังคับ)<input data-draft="imp.credit" value="${esc(f['imp.credit'] ?? '')}" placeholder="ภาพ: ชื่อช่างภาพ"></label></div>
+      <label class="f">แท็ก (คั่นด้วย ,)<input data-draft="imp.tags" value="${esc(f['imp.tags'] ?? '')}" placeholder="พระธาตุ, นครศรีธรรมราช"></label>
+      <label class="f">นำเข้าแล้วจะใช้ยังไง<select data-draft="imp.intent">
+        <option value="keep" ${(f['imp.intent'] ?? 'keep') === 'keep' ? 'selected' : ''}>เก็บไว้ก่อน (Claude เห็นตอนทำ shot list)</option>
+        ${(S.d.assetMap?.vectors ?? []).length ? `<option value="replace" ${f['imp.intent'] === 'replace' ? 'selected' : ''}>ใช้แทนของเดิม — ทุกช็อตที่ใช้ asset นั้น</option>` : ''}
+        ${S.d.hasShots ? `<option value="add" ${f['imp.intent'] === 'add' ? 'selected' : ''}>ให้ Claude ใส่เพิ่มในช็อต</option>` : ''}</select></label>
+      ${f['imp.intent'] === 'replace' ? `<div class="two"><label class="f">แทน asset ไหน<select data-draft="imp.from"><option value="">— เลือก —</option>${(S.d.assetMap?.vectors ?? []).map((v) => `<option value="${esc(v.name)}" ${f['imp.from'] === v.name ? 'selected' : ''}>${esc(v.name)} (${v.n} layer)</option>`).join('')}</select></label>
+        <label class="f">ช็อตที่ของเดิมขยับ<select data-draft="imp.keep"><option value="1" ${f['imp.keep'] !== '0' ? 'selected' : ''}>เก็บเป็นของเดิม (แนะนำ)</option><option value="0" ${f['imp.keep'] === '0' ? 'selected' : ''}>แทนด้วย (ท่าขยับจะหาย)</option></select></label></div>` : ''}
+      ${f['imp.intent'] === 'add' ? `<label class="f">อยากให้ใส่ตรงไหน / ทำอะไร (ไม่บังคับ)<input data-draft="imp.where" value="${esc(f['imp.where'] ?? '')}" placeholder="เช่น ช็อตเปิดคลิป หรือแทนภาพหาดในอัลบั้ม"></label>` : ''}
+      <div class="row"><span class="grow small muted">ใช้ id เดิม = แทนที่ภาพเดิม</span><button class="btn primary" data-act="imp-add" ${S.importFile ? '' : 'disabled'}>นำเข้า</button></div>
+    </div>` : ''}
+    ${im.items.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">${im.items.map(card).join('')}</div>` : ''}
+  </div>`;
+};
+
+/** แผง "ใช้แทนของเดิม" (asset-map · rule 16) — เลือก vector → ดูผลกระทบ → ยืนยัน */
+const mapPanel = (to) => {
+  const m = S.mapUI;
+  if (!m || m.to !== to) return '';
+  const vs = S.d.assetMap?.vectors ?? [];
+  const im = m.impact;
+  return `<div class="mappanel stack" style="gap:8px">
+    <div class="stack" style="gap:8px"><label class="f">แทน asset ไหน<select data-mapui="from"><option value="">— เลือก —</option>${vs.map((v) => `<option value="${esc(v.name)}" ${m.from === v.name ? 'selected' : ''}>${esc(v.name)} (${v.n})</option>`).join('')}</select></label>
+      <label class="f">ช็อตที่ของเดิมขยับ<select data-mapui="keep"><option value="1" ${m.keep ? 'selected' : ''}>เก็บเป็นของเดิม</option><option value="0" ${m.keep ? '' : 'selected'}>แทนด้วย</option></select></label></div>
+    ${im ? `<div class="small"><b>กระทบ ${im.shots.length} ช็อต${im.covers.length ? ` + ปก ${im.covers.map((c) => c.replace('cover-', '')).join(', ')}` : ''}</b>${im.shots.length ? ` — ${im.shots.map(esc).join(', ')}` : ''}</div>
+      <div class="small muted">ต้องทำใหม่: ${im.stale.map((k) => esc(S.d.stages.find((s) => s.key === k)?.name ?? k)).join(' · ')} · <b>เสียงพากย์ไม่ต้องทำใหม่</b> · shots.json ไม่เปลี่ยน</div>
+      ${im.warnings.map((w) => `<div class="small" style="color:var(--warn-ink)">⚠ ${esc(w)}</div>`).join('')}` : '<div class="small muted">เลือก asset เพื่อดูผลกระทบ</div>'}
+    <div class="row" style="gap:6px"><button class="btn sm" data-act="map-close">ยกเลิก</button><span class="grow"></span>
+      <button class="btn sm primary" data-act="map-save" ${im && im.shots.length + im.covers.length ? '' : 'disabled'}>ยืนยัน ใช้แทน</button></div>
+  </div>`;
+};
+const assetMapView = () => {
+  const es = S.d.assetMap?.entries ?? [];
+  if (!es.length) return '';
+  return `<div class="card pad stack" style="gap:8px;margin-bottom:16px"><b>ใช้แทนของเดิม (asset-map.json) · ${es.length} คู่</b>
+    <div class="small muted">แทนทุก layer ตอน render — shots.json ไม่เปลี่ยน · ของเดิมยังเป็นสำรอง · ลบคู่ = กลับไปใช้ของเดิม</div>
+    ${es.map((e) => `<div class="row" style="gap:8px"><code class="grow">${esc(e.from)} → ${esc(e.to)}</code>${e.keepAnimated ? '<span class="pill plain">ช็อตที่ขยับใช้ของเดิม</span>' : ''}
+      <button class="btn sm danger" data-act="map-remove" data-from="${esc(e.from)}">ลบคู่นี้</button></div>`).join('')}</div>`;
+};
+const loadMapImpact = async () => {
+  const m = S.mapUI;
+  if (!m?.from) { if (m) m.impact = null; return render(); }
+  try { m.impact = await api(`/api/p/${S.slug}/asset-map/preview`, {method: 'POST', body: {from: m.from, to: m.to, keepAnimated: m.keep}}); } catch (e) { toast(e.message, true); }
+  render();
+};
+
+/** คำแนะนำ vector / PNG (scripts/asset-plan.mjs · rule 04) */
+/* ---------------- Stage 6 · Asset list — พรีวิว asset จริง (bundle จาก src/assets ผ่าน /asset-lib.js) ---------------- */
+let ALIB = null, ALIB_P = null;
+const loadAssetLib = (bust = false) => {
+  if (bust) ALIB_P = null;
+  return (ALIB_P ??= import(`/asset-lib.js?v=${Date.now()}`).then((m) => { ALIB = m; render(); hydrateAssets(); return m; })
+    .catch((e) => { ALIB = {error: e.message, names: [], render: () => ''}; render(); }));
+};
+const PV = [];
+const pv = (name, style = 'vector', props = {}, cls = '', t = 1.5) => { PV.push({name, style, props, t}); return `<div class="apv ${style} ${cls}" data-apv="${PV.length - 1}"></div>`; };
+const hydrateAssets = () => {
+  const els = document.querySelectorAll('.apv[data-apv]:not([data-done])');
+  if (!els.length) return;
+  if (!ALIB) { loadAssetLib(); return; }
+  for (const el of els) {
+    const d = PV[+el.dataset.apv];
+    if (!d) continue;
+    try { el.innerHTML = ALIB.render(d.name, {style: d.style, props: d.props, t: d.t, dur: 4}) || `<span class="small muted">ไม่มี asset "${esc(d.name)}"</span>`; }
+    catch (e) { el.innerHTML = `<span class="small" style="color:var(--accent-ink)">วาดไม่ได้: ${esc(e.message)}</span>`; }
+    el.dataset.done = '1';
+  }
+};
+let aT0 = performance.now();
+const assetLoop = () => {
+  const el = document.getElementById('apv-big');
+  if (el && ALIB?.render && S.assetPlay !== false) {
+    const d = PV[+el.dataset.apv];
+    if (d) {
+      const t = ((performance.now() - aT0) / 1000) % 5;
+      try { el.innerHTML = ALIB.render(d.name, {style: d.style, props: d.props, t, dur: 5}); } catch {}
+      const tl = document.getElementById('apv-t'); if (tl) tl.textContent = `${t.toFixed(1)} วิ`;
+      const sc = document.getElementById('apv-scrub'); if (sc) sc.value = t.toFixed(2);
+    }
+  }
+  requestAnimationFrame(assetLoop);
+};
+requestAnimationFrame(assetLoop);
+document.addEventListener('input', (e) => {
+  if (e.target.id !== 'apv-scrub') return;
+  S.assetPlay = false;
+  const el = document.getElementById('apv-big'); const d = el && PV[+el.dataset.apv];
+  if (d && ALIB?.render) { el.innerHTML = ALIB.render(d.name, {style: d.style, props: d.props, t: +e.target.value, dur: 5}); document.getElementById('apv-t').textContent = `${(+e.target.value).toFixed(1)} วิ`; }
+  const b = document.querySelector('[data-act="asset-play"]'); if (b) b.textContent = '▶ เล่น';
+});
+
+const SYS_ASSETS = new Set(['paper-bg', 'bg-color', 'dust']);
+const chip = (w) => w.startsWith('cover:') ? `<button class="chipbtn" data-act="goto-shot" data-id="${esc(w)}">ปก ${esc(w.slice(6))}</button>` : `<button class="chipbtn mono" data-act="goto-shot" data-id="${esc(w)}">${esc(w)}</button>`;
+const propsLine = (p) => { const s = JSON.stringify(p ?? {}); return s === '{}' ? 'ค่าเริ่มต้น' : s.length > 160 ? s.slice(0, 157) + '…' : s; };
+
+const assetDetail = (u, plan) => {
+  const v = u.vectors.find((x) => x.name === S.assetSel);
+  if (!v) return '';
+  const vi = Math.min(S.assetVar ?? 0, Math.max(0, v.variants.length - 1));
+  const cur = v.variants[vi] ?? {props: {}, style: 'vector', where: []};
+  const style = S.assetStyle ?? cur.style;
+  const r = plan[v.name];
+  const imgs = (S.d.images?.items ?? []).filter((x) => v.replacedBy.includes(`img:${x.id}`));
+  const refs = (S.d.refs ?? []).filter((x) => v.replacedBy.includes(`ref:${x.id}`));
+  const users = (S.d.imports?.items ?? []).filter((x) => v.replacedBy.includes(`user:${x.id}`));
+  const repl = [
+    ...imgs.map((x) => { const c = x.candidates.find((k) => k.k === x.selected); return `<div class="repl">${c ? `<img src="${media(c.file, c.mtime)}" alt="">` : '<div class="ph small">ยังไม่เลือก</div>'}<span class="small"><b>ภาพ AI</b> ${esc(x.id)} ${c ? '<span class="pill ok">ใช้แทนแล้ว</span>' : '<span class="pill warn">ยังไม่เลือก → ใช้ภาพวาด</span>'}</span></div>`; }),
+    ...refs.map((x) => `<div class="repl">${x.file ? `<img src="${media(x.file, x.mtime)}" alt="">` : '<div class="ph small">–</div>'}<span class="small"><b>ภาพจริง</b> ${esc(x.id)} ${x.usable ? '<span class="pill ok">ใช้แทนแล้ว</span>' : '<span class="pill warn">ยังไม่เลือก → ใช้ภาพวาด</span>'}</span></div>`),
+    ...users.map((x) => `<div class="repl"><img src="${media(x.path, x.mtime)}" alt=""><span class="small"><b>ของคุณ</b> ${esc(x.id)}</span></div>`),
+  ].join('');
+  return `<div class="card pad adetail">
+    <div class="stack" style="gap:8px">
+      ${pv(v.name, style, cur.props, 'big').replace('class="apv', 'id="apv-big" class="apv')}
+      <div class="row" style="gap:8px">
+        <button class="btn sm" data-act="asset-play">${S.assetPlay === false ? '▶ เล่น' : '⏸ หยุด'}</button>
+        <input id="apv-scrub" type="range" min="0" max="5" step="0.05" value="1.5" class="grow" aria-label="เวลา">
+        <span id="apv-t" class="small muted mono" style="min-width:48px">1.5 วิ</span></div>
+      <div class="row" style="gap:6px"><span class="small muted grow">ท่าขยับวาดจากโค้ดเดียวกับวิดีโอ (ยังไม่ใส่ texture ยุค/กล้อง)</span>
+        <button class="btn sm ${style === 'vector' ? 'dark' : ''}" data-act="asset-style" data-s="vector">vector</button>
+        <button class="btn sm ${style === 'collage' ? 'dark' : ''}" data-act="asset-style" data-s="collage">collage</button></div>
+    </div>
+    <div class="stack" style="gap:10px;min-width:0">
+      <div class="row" style="gap:8px"><h2 class="mono" style="font-size:20px">${esc(v.name)}</h2>
+        ${r ? `<span class="pill ${r.rec === 'png' ? 'blue' : 'plain'}">แนะนำ ${r.rec === 'png' ? 'PNG' : 'vector'}</span>` : ''}<span class="grow"></span>
+        <button class="btn sm" data-act="asset-close">ปิด</button></div>
+      ${r ? `<div class="small muted">${esc(r.reasons.join(' · '))}</div>` : ''}
+      <div class="kv small"><b>ใช้ใน ${v.uses} ที่:</b> <span class="chips">${[...v.shots, ...v.covers.map((c) => 'cover:' + c)].map(chip).join('')}</span></div>
+      ${v.variantCount > 1 ? `<div class="kv small"><b>${v.variantCount} แบบในคลิป</b>${v.variantCount > v.variants.length ? ` (แสดง ${v.variants.length})` : ''} — กดเพื่อดู</div>
+        <div class="vgrid">${v.variants.map((x, i) => `<button class="vbtn ${i === vi ? 'on' : ''}" data-act="asset-var" data-i="${i}" title="${esc(propsLine(x.props))}">${pv(v.name, x.style, x.props, 'sm')}<span class="small mono">${x.where.slice(0, 2).map(esc).join(' ')}${x.where.length > 2 ? '…' : ''}</span></button>`).join('')}</div>` : ''}
+      <div class="kv small"><b>props:</b> <code class="wrap">${esc(propsLine(cur.props))}</code> · ใช้ใน ${cur.where.map(esc).join(', ')}</div>
+      ${repl ? `<div class="stack" style="gap:6px"><b class="small">ภาพที่ใช้แทนในบางช็อต</b>${repl}</div>` : ''}
+      <label class="f">ขอแก้ asset นี้ (Claude แก้โค้ดภาพวาด/ตำแหน่งในช็อต)
+        <textarea rows="2" data-draft="asset:${esc(v.name)}" placeholder="เช่น เรือกระดาษเล็กไป · อยากให้ขีดบนวงกบหนาขึ้น">${esc(S.drafts[`asset:${v.name}`] ?? '')}</textarea></label>
+      <div class="row"><span class="grow"></span><button class="btn primary" data-act="fb-send" data-target="asset:${esc(v.name)}">เพิ่มเข้าคิวให้ Claude</button></div>
+    </div>
+  </div>`;
+};
+
+const assetsStageView = (st) => {
+  PV.length = 0;
+  const u = S.d.assetUsage;
+  const plan = Object.fromEntries((S.d.assetPlan?.rows ?? []).map((r) => [r.name, r]));
+  const im = S.d.images?.items ?? [];
+  const imPicked = im.filter((x) => x.selected != null).length;
+  const refsUsed = (S.d.refs ?? []).filter((r) => r.usedIn.length);
+  const refsOk = refsUsed.filter((r) => r.usable).length;
+  const mine = S.d.imports?.items ?? [];
+  const mineUsed = mine.filter((x) => x.usedIn.length || x.replaces?.length).length;
+  const vecs = (u?.vectors ?? []).filter((v) => !SYS_ASSETS.has(v.name));
+  const tab = S.assetTab ?? 'clip';
+  const stat = (big, label, sub = '', tone = '', k = '') => `<button class="rstat ${tone}" data-act="asset-tab" data-k="${k}" style="text-align:left"><div class="big">${big}</div><div class="small">${label}</div>${sub ? `<div class="small muted">${sub}</div>` : ''}</button>`;
+  const T = [['clip', 'ภาพวาดในคลิป', vecs.length], ['ai', 'ภาพ AI', im.length], ['refs', 'ภาพจริง', refsUsed.length], ['mine', 'ของคุณ', mine.length], ['plan', 'vector / PNG', S.d.assetPlan?.summary?.mismatches ? '≠' : ''], ['lib', 'คลังทั้งหมด', ALIB?.names?.length ?? ''], ['doc', 'assets.md', '']];
+  let body = '';
+  if (tab === 'clip') {
+    if (!u) body = emptyState('ยังไม่มี shots.json', 'Asset list สรุปจาก Shot list — ทำ stage 5 ก่อน');
+    else {
+      const card = (v) => {
+        const x = v.variants[0] ?? {props: {}, style: 'vector'};
+        const r = plan[v.name];
+        const repl = v.replacedBy.length ? v.replacedBy.map((k) => {
+          const [kind, id] = k.split(':');
+          const ok = kind === 'img' ? im.find((i) => i.id === id)?.selected != null : kind === 'ref' ? (S.d.refs ?? []).find((i) => i.id === id)?.usable : true;
+          return `<span class="pill ${ok ? 'ok' : 'warn'}" title="${esc(k)} ใช้แทนภาพวาดนี้ในบางช็อต${ok ? '' : ' (ยังไม่เลือก → ใช้ภาพวาด)'}">${kind === 'img' ? 'AI' : kind === 'ref' ? '📷' : 'ของคุณ'}แทน ${ok ? '✓' : '·รอ'}</span>`;
+        }).join('') : '';
+        return `<button class="acard ${S.assetSel === v.name ? 'on' : ''}" data-act="asset-sel" data-name="${esc(v.name)}">
+          ${pv(v.name, x.style, x.props)}
+          <span class="row" style="gap:6px;flex-wrap:wrap"><b class="mono grow" style="font-size:13.5px">${esc(v.name)}</b>${r?.rec === 'png' ? '<span class="pill blue">PNG?</span>' : ''}${repl}</span>
+          <span class="small muted">ใช้ ${v.uses}${v.variantCount > 1 ? ` · ${v.variantCount} แบบ` : ''} · ${v.shots.slice(0, 3).map(esc).join(' ')}${v.shots.length > 3 ? '…' : ''}${v.covers.length ? ` · ปก ${v.covers.map(esc).join(',')}` : ''}</span></button>`;
+      };
+      body = `${ALIB?.error ? `<div class="banner bad small"><span class="grow">วาดพรีวิวไม่ได้ (bundle src/assets): ${esc(ALIB.error.slice(0, 300))}</span><button class="btn sm" data-act="asset-reload">ลองใหม่</button></div>` : ''}
+        ${S.assetSel ? assetDetail(u, plan) : ''}
+        <div class="row small muted" style="margin:4px 0 10px"><span class="grow">กดการ์ดเพื่อดูท่าขยับ ทุกแบบที่ใช้ และช็อตที่ใช้ · พื้นเข้ม = vector · พื้นกระดาษ = collage · ไม่รวมพื้นหลังระบบ (${[...SYS_ASSETS].join(', ')})</span>
+          <button class="btn sm" data-act="asset-reload" title="วาดใหม่หลังแก้ไฟล์ใน src/assets">↻ โหลดภาพวาดใหม่</button></div>
+        <div class="agrid">${vecs.map(card).join('')}</div>`;
+    }
+  } else if (tab === 'ai') body = imagesView();
+  else if (tab === 'refs') {
+    const rs = (S.d.refs ?? []).filter((r) => r.usedIn.length || r.approved);
+    body = rs.length ? `<div class="row small muted" style="margin-bottom:10px"><span class="grow">ภาพจริงจากการค้นคว้าที่ใช้/เลือกไว้ — เลือก/ตรวจ license ในหน้า ค้นคว้า</span><button class="btn sm" data-act="goto-refs">ไปหน้า ค้นคว้า</button></div>
+      <div class="agrid">${rs.map((r) => `<div class="acard" style="cursor:default">
+        ${r.file ? `<div class="apv photo"><img src="${media(r.file, r.mtime)}" alt="${esc(r.id)}" loading="lazy"></div>` : '<div class="apv"><span class="small muted">ยังไม่ดาวน์โหลด</span></div>'}
+        <span class="row" style="gap:6px;flex-wrap:wrap"><b class="mono grow" style="font-size:13.5px">${esc(r.id)}</b><span class="pill ${r.usable ? 'ok' : 'warn'}">${r.usable ? 'ใช้ได้' : 'ยังไม่เลือก'}</span></span>
+        <span class="small muted">${esc(r.license ?? '')}${r.author ? ' · ' + esc(r.author) : ''}</span>
+        <span class="chips">${r.usedIn.length ? r.usedIn.map(chip).join('') : '<span class="small" style="color:var(--warn-ink)">ยังไม่ได้ใช้ในช็อต</span>'}</span></div>`).join('')}</div>` : refsView();
+  } else if (tab === 'mine') body = importsView() + assetMapView();
+  else if (tab === 'plan') body = assetPlanView().replace('<details class="card pad"', '<details open class="card pad"');
+  else if (tab === 'lib') {
+    if (!ALIB) { loadAssetLib(); body = '<div class="small muted">กำลังโหลดภาพวาด…</div>'; }
+    else {
+      const used = new Set((u?.vectors ?? []).map((v) => v.name));
+      const q = (S.drafts.assetQ ?? '').trim().toLowerCase();
+      const names = ALIB.names.filter((n) => !q || n.includes(q));
+      body = `<div class="row" style="gap:8px;margin-bottom:10px"><input class="grow" data-draft="assetQ" value="${esc(S.drafts.assetQ ?? '')}" placeholder="ค้นชื่อ asset เช่น boat, crab, map" aria-label="ค้นชื่อ asset">
+        <span class="small muted">${names.length} / ${ALIB.names.length} ชิ้น · ✓ = ใช้ในคลิปนี้</span></div>
+        <div class="agrid lib">${names.map((n) => `<div class="acard" style="cursor:default">${pv(n, 'vector', {})}<span class="row" style="gap:6px"><b class="mono grow" style="font-size:12.5px">${esc(n)}</b>${used.has(n) ? '<span class="pill ok">✓</span>' : ''}</span></div>`).join('')}</div>`;
+    }
+  } else if (tab === 'doc') body = docView('assets.md', st);
+  return `
+  <div class="rstats">
+    ${stat(vecs.length, 'ภาพวาดในคลิป', `${vecs.filter((v) => v.variantCount > 1).length} ชิ้นมีหลายแบบ`, '', 'clip')}
+    ${stat(`${imPicked}<span class="of">/${im.length}</span>`, 'ภาพ AI เลือกแล้ว', im.length ? (imPicked < im.length ? 'ที่ยังไม่เลือกใช้ภาพวาดแทน' : 'ครบ') : 'ไม่มี images.json', im.length && imPicked < im.length ? 'warn' : im.length ? 'ok' : '', 'ai')}
+    ${stat(`${refsOk}<span class="of">/${refsUsed.length}</span>`, 'ภาพจริงในคลิป', refsUsed.length ? `${[...new Set(refsUsed.flatMap((r) => r.usedIn))].length} ช็อต` : 'ยังไม่ได้ใช้', refsUsed.length && refsOk < refsUsed.length ? 'warn' : refsUsed.length ? 'ok' : '', 'refs')}
+    ${stat(`${mineUsed}<span class="of">/${mine.length}</span>`, 'ของคุณที่ใช้', mine.length ? '' : 'ยังไม่ได้นำเข้า', '', 'mine')}
+  </div>
+  <div class="tabs" role="tablist" style="margin:14px 0 12px">${T.map(([k, l, c]) => `<button class="tab ${tab === k ? 'on' : ''}" role="tab" aria-selected="${tab === k}" data-act="asset-tab" data-k="${k}">${l}${c !== '' ? ` <span class="cnt">${c}</span>` : ''}</button>`).join('')}</div>
+  ${body}`;
+};
+
+const assetPlanView = () => {
+  const p = S.d.assetPlan;
+  if (!p?.rows?.length) return '';
+  const s = p.summary;
+  const row = (r) => `<tr class="${r.mismatch ? 'mm' : ''}"><td class="mono">${esc(r.name)}</td>
+    <td><span class="pill ${r.rec === 'png' ? 'blue' : 'plain'}">${r.rec === 'png' ? 'PNG' : 'vector'}</span>${r.mismatch ? ' <span class="pill warn" title="ไม่ตรงกับ images.json ตอนนี้">≠</span>' : ''}</td>
+    <td class="small">${r.uses}${r.variants > 1 ? ` · ${r.variants} แบบ` : ''}</td>
+    <td class="small muted">${esc(r.reasons.join(' · '))}${r.warn ? `<div style="color:var(--warn-ink)">⚠ ${esc(r.warn)}</div>` : ''}${r.hasImg.length ? `<div>images.json: ${r.hasImg.map(esc).join(', ')}</div>` : ''}</td></tr>`;
+  return `<details class="card pad" style="margin-bottom:16px" ${s.mismatches ? 'open' : ''}><summary><b>คำแนะนำ vector / PNG</b>
+    <span class="small muted">— PNG ${s.png} ชิ้น (${s.images} รูป ≈ $${s.estCost}) · vector ${s.vector} ชิ้น${s.mismatches ? ` · <span style="color:var(--warn-ink)">${s.mismatches} ชิ้นไม่ตรงกับแผนตอนนี้</span>` : ''}</span></summary>
+    <div class="small muted" style="margin:8px 0">คิดจาก shots.json: ขนาดบนจอ · จำนวนช็อต · props ที่ขยับ · ฉากหลังเต็มจอ · style (${esc(p.render)}) — เป็นคำแนะนำ Claude ตัดสินใน assets.md · ถ้าอยากเปลี่ยน กด "ขอแก้" แล้วบอกชื่อ asset</div>
+    <div style="overflow:auto"><table class="plan"><thead><tr><th>asset</th><th>แนะนำ</th><th>ใช้</th><th>เหตุผล</th></tr></thead><tbody>${p.rows.map(row).join('')}</tbody></table></div></details>`;
+};
+
+/** ลบโปรเจกต์ (ย้ายไปถังขยะ · กู้คืนได้จากหน้าแรก) */
+const dangerZone = () => `<div class="card pad stack danger" style="gap:10px;margin-top:22px">
+  <b>ลบโปรเจกต์</b>
+  <div class="small muted">ย้าย <code>projects/${esc(S.slug)}/</code>, <code>public/${esc(S.slug)}/</code> (เสียง/รูป) และไฟล์ใน <code>out/</code> ของเรื่องนี้ ไปไว้ในถังขยะ — กู้คืนได้จากหน้าแรกจนกว่าจะกด "ลบถาวร"</div>
+  <div class="row"><span class="grow"></span><button class="btn danger" data-act="project-delete">ย้าย "${esc(S.slug)}" ไปถังขยะ…</button></div>
+</div>`;
+
 const docView = (file, st) => {
   const text = S.d.docs[file];
   if (!text) {
@@ -420,12 +753,20 @@ const scriptView = () => {
     </div>`).join('')}`;
 };
 
+/** ภาพจริง (ref:) ที่ช็อตนี้ใช้ — ยังไม่กด "ใช้รูปนี้" = วิดีโอ/ภาพนิ่งใช้ vector สำรอง */
+const shotRefs = (id) => (S.d.refs ?? []).filter((r) => r.usedIn.includes(id));
+const refPill = (id) => {
+  const rs = shotRefs(id);
+  if (!rs.length) return '';
+  const on = rs.filter((r) => r.usable).length;
+  return on === rs.length ? `<span class="tagb pill ok">📷 ภาพจริง ${on}</span>` : `<span class="tagb pill warn">📷 ภาพจริง ${on}/${rs.length} · รอเลือก</span>`;
+};
 const shotFrame = (sh) => {
   const st = S.d.stills[sh.id];
   const openHere = openFb().some((f) => f.target === `shot:${sh.id}`);
   return `<div class="frame">${st ? `<img src="${media(st.path, st.mtime)}" alt="ภาพนิ่ง ${sh.id}" loading="lazy">` : `<div class="ph">${esc(sh.description)}</div>`}
     ${st?.maybeStale ? '<span class="tagl pill bad">อาจล้าสมัย</span>' : !st ? '<span class="tagl pill plain">ยังไม่มีภาพนิ่ง</span>' : ''}
-    ${openHere ? '<span class="tagr pill warn">คำขอค้าง</span>' : ''}</div>`;
+    ${openHere ? '<span class="tagr pill warn">คำขอค้าง</span>' : ''}${refPill(sh.id)}</div>`;
 };
 
 const shotsView = () => {
@@ -437,7 +778,11 @@ const shotsView = () => {
   const staleCount = Object.values(S.d.stills).filter((x) => x.maybeStale).length;
   const noStills = !Object.keys(S.d.stills).length;
   const fbs = (S.d.feedback ?? []).filter((f) => f.target === `shot:${sh.id}`);
+  const refsUsed = (S.d.refs ?? []).filter((r) => r.usedIn.length);
+  const refsWait = refsUsed.filter((r) => !r.usable);
+  const shotRefList = shotRefs(sh.id);
   return `
+  ${refsWait.length ? `<div class="banner warn"><span class="grow">ช็อตใช้ภาพจริง ${refsUsed.length} รูป (${[...new Set(refsUsed.flatMap((r) => r.usedIn))].length} ช็อต) แต่ยังไม่ได้เลือก ${refsWait.length} รูป — ระหว่างนี้วิดีโอ/ภาพนิ่งใช้ภาพวาดสำรองแทน · กด “ใช้รูปนี้” ในหน้า ค้นคว้า แล้วกดภาพนิ่งใหม่</span><button class="btn sm dark" data-act="goto-refs">ไปเลือกภาพจริง</button></div>` : ''}
   ${noStills ? `<div class="banner warn"><span class="grow">ยังไม่มีภาพนิ่ง — กด “ภาพนิ่งทุกช็อต” เพื่อดูภาพจริงแทนคำอธิบาย</span><button class="btn sm dark" data-act="job" data-job="stills">ภาพนิ่งทุกช็อต</button></div>`
     : staleCount ? `<div class="banner bad"><span class="grow">ภาพนิ่ง ${staleCount} ช็อตเก่ากว่า shots.json — อาจไม่ตรงกับของจริง</span><button class="btn sm dark" data-act="job" data-job="stills">Render ภาพนิ่งใหม่</button></div>` : ''}
   <div class="tabs" role="tablist">${S.d.scenes.map((s) => `<button class="tab ${s.id === scene.id ? 'on' : ''}" role="tab" aria-selected="${s.id === scene.id}" data-act="scene" data-id="${s.id}">${s.id} · ${esc(ERA_TH[s.era] ?? s.era)}</button>`).join('')}</div>
@@ -447,6 +792,7 @@ const shotsView = () => {
       <div class="row"><h2 style="font-size:20px">${sh.id}</h2><span class="kind ${sh.kind}">${sh.kind}</span>${sh.data ? `<span class="pill plain">${esc(sh.data)}</span>` : ''}</div>
       <div class="kv"><b>ภาพ:</b> ${esc(sh.description)}</div>
       <div class="kv" style="padding:8px 12px;border-radius:10px;background:var(--ground)"><b>VO:</b> “${esc(sh.vo)}”</div>
+      ${shotRefList.length ? `<div class="kv"><b>ภาพจริง:</b> ${shotRefList.map((r) => `<span class="pill ${r.usable ? 'ok' : 'warn'}">${esc(r.id)} · ${r.usable ? 'ใช้แล้ว' : r.status === 'blocked' || r.status === 'error' ? 'ใช้ไม่ได้' : 'รอคุณเลือก'}</span>`).join(' ')}</div>` : ''}
       ${sh.text.length ? `<div class="kv"><b>ตัวหนังสือบนจอ:</b> ${sh.text.map(esc).join(' · ')}</div>` : ''}
       <div class="kv small"><b>layers:</b> <span class="mono">${sh.layers.map(esc).join(', ') || '–'}</span></div>
       <label class="f">สั่งแก้ช็อตนี้
@@ -607,7 +953,22 @@ const postView = () => {
       <pre class="posttext">${esc(f.text)}</pre></div>`).join('')}
     ${p.tips ? `<div class="small muted">💡 ${esc(p.tips)}</div>` : ''}
   </div>`;
+  const tr = r.trends;
+  const TT = {hashtag: '#', keyword: 'คำค้น', meme: 'มีม', event: 'เหตุการณ์', format: 'รูปแบบ', sound: 'เสียง'};
+  const trendCard = !tr ? `<div class="banner warn small"><span class="grow">ยังไม่ได้เช็กเทรนด์ — กด "ขอแก้" ที่ข้อความโพสต์แล้วพิมพ์ "เช็กเทรนด์ใหม่" (rules/14 · เกาะเทรนด์)</span></div>`
+    : `<div class="card pad stack" style="gap:10px">
+      <div class="row" style="gap:8px"><b class="grow">🔥 เทรนด์ที่เกาะ</b>
+        <span class="pill ${tr.ageDays == null || tr.ageDays > 7 ? 'bad' : tr.ageDays > 3 ? 'warn' : 'ok'}">เช็กเมื่อ ${tr.ageDays == null ? '?' : tr.ageDays === 0 ? 'วันนี้' : `${tr.ageDays} วันก่อน`}</span>
+        <button class="btn sm" data-act="fb-trend">เช็กเทรนด์ใหม่…</button></div>
+      ${tr.summary ? `<div class="small">${esc(tr.summary)}</div>` : ''}
+      <div class="trendlist">${tr.items.map((x) => `<div class="trend ${x.use ? '' : 'off'}">
+        <span class="pill ${x.use ? 'ok' : 'plain'}">${x.use ? 'ใช้' : 'ไม่ใช้'}</span><span class="pill plain">${esc(TT[x.type] ?? x.type)}</span>
+        <b>${esc(x.term)}</b><span class="small muted grow">${esc(x.why)}${x.where?.length ? ` · ใน ${x.where.map(esc).join(', ')}` : ''}</span>
+        ${x.evidence ? `<a class="small" href="${esc(x.evidence)}" target="_blank" rel="noopener">หลักฐาน ↗</a>` : '<span class="small" style="color:var(--warn-ink)">ไม่มีหลักฐาน</span>'}</div>`).join('')}</div>
+      <div class="small muted">เทรนด์หมดอายุไว — ถ้าโพสต์ช้ากว่า 3–7 วันหลังเช็ก ให้เช็กใหม่ · ใช้เฉพาะที่เกี่ยวกับเนื้อหาคลิปจริง</div>
+    </div>`;
   return `${head}
+  ${trendCard}
   <div class="row"><span class="grow small muted">${r.aiDisclosure == null ? '' : `ติดป้ายเนื้อหา AI: <b>${r.aiDisclosure ? 'ต้องติด' : 'ไม่ต้อง'}</b>`}${r.notes ? ` · ${esc(r.notes)}` : ''}</span>
     <button class="btn" data-act="job" data-job="post">ส่งออก out/${esc(S.slug)}-post.md</button></div>
   ${msgs ? `<div class="card pad stack" style="gap:4px">${msgs}</div>` : ''}
@@ -694,7 +1055,7 @@ const homePage = () => {
         <div><div class="ptitle">${esc(p.title)}</div>
           <div class="mono small muted">${esc(p.slug)} · ${p.scenes} ซีน · ${p.shots} ช็อต${p.eras.length ? ` · ${p.eras.length} ยุค` : ''}</div></div>
         ${chips ? `<div class="chips">${chips}</div>` : ''}
-        <div class="row" style="gap:10px"><div class="segs grow" aria-label="ความคืบหน้า ${done}/${st.length}">${st.map((s) => `<span class="${s.state}" title="${s.n} · ${esc(s.name)}: ${STATE_TH[s.state]}"></span>`).join('')}</div>
+        <div class="row" style="gap:10px"><div class="segs grow" aria-label="ความคืบหน้า ${done}/${st.length}">${st.map((s) => `<span class="${s.state}" title="${s.n} · ${esc(s.name)}: ${stateText(s)}"></span>`).join('')}</div>
           <span class="small muted" style="white-space:nowrap">${done}/${st.length}</span></div>
         ${next}
         ${p.openFeedback ? `<div class="small" style="color:var(--accent-ink)">คำขอแก้ค้าง ${p.openFeedback} รายการ — <code>/ht-feedback ${esc(p.slug)}</code></div>` : ''}
@@ -755,15 +1116,19 @@ const homePage = () => {
     ${newOpen ? newPanel : ''}
     <div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button class="tab ${flt === k ? 'on' : ''}" role="tab" aria-selected="${flt === k}" data-act="home-filter" data-k="${k}">${l} <span class="cnt">${groups[k].length}</span></button>`).join('')}</div>
     ${list.length ? `<div class="projects">${list.map(card).join('')}</div>` : emptyState('ไม่มีโปรเจกต์ในกลุ่มนี้', 'ลองเลือกแท็บอื่น หรือกด “+ เริ่มเรื่องใหม่”')}
+    ${S.trash?.length ? `<details class="card pad trash" style="margin-top:22px"><summary><b>ถังขยะ</b> <span class="small muted">${S.trash.length} โปรเจกต์ · ${mb(S.trash.reduce((a, x) => a + x.bytes, 0))}</span></summary>
+      <div class="stack" style="gap:8px;margin-top:10px">${S.trash.map((x) => `<div class="row" style="gap:8px"><span class="mono grow">${esc(x.slug)}</span><span class="small muted">ลบ ${ago(x.deletedAt)} · ${mb(x.bytes)}</span>
+        <button class="btn sm" data-act="trash-restore" data-id="${esc(x.id)}" ${x.canRestore ? '' : 'disabled title="มีโปรเจกต์ชื่อนี้อยู่แล้ว"'}>กู้คืน</button>
+        <button class="btn sm danger" data-act="trash-purge" data-id="${esc(x.id)}" data-slug="${esc(x.slug)}">ลบถาวร</button></div>`).join('')}</div></details>` : ''}
   </main>`;
 };
 
 const mainInner = () => {
-  if (S.stage === 'settings') return settingsView();
+  if (S.stage === 'settings') return settingsView() + dangerZone();
   const st = S.d.stages.find((s) => s.key === S.stage) ?? S.d.stages[0];
   const body = {
-    brief: () => docView('brief.md', st), research: () => docView('facts.md', st), beats: () => docView('beats.md', st),
-    script: scriptView, shots: shotsView, assets: () => imagesView() + docView('assets.md', st), voice: voiceView, preview: previewView, qa: qaView, cover: coverView, post: postView,
+    brief: () => docView('brief.md', st), research: () => researchView(st), beats: () => docView('beats.md', st),
+    script: scriptView, shots: () => importsView() + assetMapView() + shotsView(), assets: () => assetsStageView(st), voice: voiceView, preview: previewView, qa: qaView, cover: coverView, post: postView,
   }[st.key]();
   return stageHead(st) + body;
 };
@@ -802,6 +1167,7 @@ const render = () => {
   if (last.panel !== parts.panel) { ws.children[2].outerHTML = parts.panel; last.panel = parts.panel; }
   const nl = document.getElementById('joblog');
   if (nl && logAtBottom) nl.scrollTop = nl.scrollHeight;
+  hydrateAssets();
   if (focus || sfocus) {
     const el = document.querySelector(focus ? `[data-draft="${CSS.escape(focus)}"]` : `[data-sdraft="${CSS.escape(sfocus)}"]`);
     if (el && document.activeElement !== el) { el.focus(); try { el.selectionStart = el.selectionEnd = el.value.length; } catch {} }
@@ -809,6 +1175,22 @@ const render = () => {
 };
 
 // ---------------- events ----------------
+document.addEventListener('change', (e) => {
+  const mu = e.target.dataset?.mapui;
+  if (mu && S.mapUI) {
+    if (mu === 'from') S.mapUI.from = e.target.value;
+    if (mu === 'keep') S.mapUI.keep = e.target.value === '1';
+    loadMapImpact();
+    return;
+  }
+  if (e.target.dataset?.draft && e.target.tagName === 'SELECT' && String(e.target.dataset.draft).startsWith('imp.')) { S.drafts[e.target.dataset.draft] = e.target.value; render(); return; }
+  if (!e.target.dataset?.importFile) return;
+  const file = e.target.files?.[0] ?? null;
+  S.importFile = file;
+  if (file && !S.drafts['imp.id']) S.drafts['imp.id'] = file.name.replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'my-image';
+  if (file && file.type === 'image/png' && !S.drafts['imp.kind']) S.drafts['imp.kind'] = 'cutout';
+  render();
+});
 document.addEventListener('input', (e) => {
   const sd = e.target.dataset?.sdraft;
   if (sd) {
@@ -839,6 +1221,7 @@ document.addEventListener('input', (e) => {
   if (!k) return;
   if (k === 'req') S.reqNote = e.target.value;
   else S.drafts[k] = e.target.value;
+  if (k === 'assetQ') { render(); return; }
   if (!S.slug && /^n/.test(k)) {
     if (k === 'ntopic' && !S.drafts._slugTouched) {
       // เดา slug จากหัวข้อภาษาอังกฤษไม่ได้ — ปล่อยให้ผู้ใช้กรอกเอง
@@ -871,6 +1254,23 @@ const ACT = {
   'req-open'() { S.reqNote = ''; render(); document.querySelector('[data-draft="req"]')?.focus(); },
   'req-cancel'() { S.reqNote = null; render(); },
   raw() { S.showRaw = !S.showRaw; render(); },
+  'research-tab'(el) { S.researchTab = el.dataset.k; render(); },
+  'fb-trend'() { promptFeedback('post', 'เช็กเทรนด์ใหม่ — อยากเน้นแพลตฟอร์มไหน/มุมไหนเป็นพิเศษไหม (เว้นว่างได้)', 'เช็กเทรนด์ใหม่แล้วปรับแคปชัน/แฮชแท็กให้เกาะเทรนด์ที่เกี่ยวกับคลิป'); },
+  'asset-tab'(el) { if (!el.dataset.k) return; S.assetTab = el.dataset.k; render(); },
+  'asset-sel'(el) { S.assetSel = S.assetSel === el.dataset.name ? null : el.dataset.name; S.assetVar = 0; S.assetStyle = null; S.assetPlay = true; aT0 = performance.now(); render(); document.getElementById('main')?.scrollTo({top: 0, behavior: 'smooth'}); },
+  'asset-close'() { S.assetSel = null; render(); },
+  'asset-var'(el) { S.assetVar = +el.dataset.i; S.assetStyle = null; render(); },
+  'asset-style'(el) { S.assetStyle = el.dataset.s; render(); },
+  'asset-play'() { S.assetPlay = S.assetPlay === false; aT0 = performance.now(); render(); },
+  'asset-reload'() { ALIB = null; loadAssetLib(true); },
+  'goto-shot'(el) {
+    const id = el.dataset.id;
+    if (id.startsWith('cover:')) { go(`#/p/${S.slug}/cover`); return; }
+    const sc = S.d.scenes.find((s) => s.shots.some((x) => x.id === id));
+    if (sc) { S.scene = sc.id; S.shot = id; }
+    go(`#/p/${S.slug}/shots`);
+  },
+  'goto-refs'() { S.researchTab = 'refs'; go(`#/p/${S.slug}/research`); },
   scene(el) { S.scene = el.dataset.id; S.shot = null; render(); },
   shot(el) { S.shot = el.dataset.id; render(); document.getElementById('main')?.scrollTo({top: 0, behavior: 'smooth'}); },
   video(el) { S.video = el.dataset.path; render(); },
@@ -889,6 +1289,91 @@ const ACT = {
   },
   'fb-scene'(el) { promptFeedback(`scene:${el.dataset.id}`, `คอมเมนต์ซีน ${el.dataset.id}`); },
   'fb-vo'(el) { promptFeedback(`vo:${el.dataset.id}`, `คอมเมนต์เสียงซีน ${el.dataset.id} (เช่น คำที่อ่านผิด)`); },
+  'map-open'(el) { S.mapUI = {to: el.dataset.to, from: '', keep: true, impact: null}; render(); },
+  'map-close'() { S.mapUI = null; render(); },
+  async 'map-save'() {
+    const m = S.mapUI;
+    await api(`/api/p/${S.slug}/asset-map`, {method: 'POST', body: {from: m.from, to: m.to, keepAnimated: m.keep}});
+    toast(`ใช้ ${m.to} แทน ${m.from} แล้ว — render ใหม่เพื่อดูผล`);
+    S.mapUI = null;
+    await refresh();
+  },
+  async 'map-remove'(el) {
+    if (!window.confirm(`เลิกใช้แทน ${el.dataset.from}? (กลับไปใช้ของเดิม)`)) return;
+    await api(`/api/p/${S.slug}/asset-map`, {method: 'POST', body: {from: el.dataset.from, remove: true}});
+    toast('ลบคู่แล้ว');
+    await refresh();
+  },
+  'imp-ask'(el) {
+    const x = (S.d.imports?.items ?? []).find((i) => i.id === el.dataset.id);
+    promptFeedback(`user:${el.dataset.id}`, `อยากให้ Claude ใส่ user:${el.dataset.id} ตรงไหน / ทำอะไร\n(คำอธิบาย: ${x?.description ?? ''})`);
+  },
+  'imp-toggle'() { S.importOpen = !(S.importOpen ?? !(S.d.imports?.items ?? []).length); render(); },
+  async 'imp-add'() {
+    const file = S.importFile;
+    if (!file) return toast('เลือกไฟล์ภาพก่อน', true);
+    const f = S.drafts;
+    const want = {intent: f['imp.intent'] ?? 'keep', from: f['imp.from'], keep: f['imp.keep'] !== '0', where: f['imp.where']};
+    const data = await new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => bad(new Error('อ่านไฟล์ไม่ได้')); r.readAsDataURL(file); });
+    const existing = (S.d.imports?.items ?? []).some((x) => x.id === (f['imp.id'] ?? '').trim());
+    if (existing && !window.confirm(`มี user:${f['imp.id']} อยู่แล้ว — แทนที่ภาพเดิม?`)) return;
+    const r = await api(`/api/p/${S.slug}/imports`, {method: 'POST', body: {data, id: f['imp.id'], title: f['imp.title'], description: f['imp.desc'], kind: f['imp.kind'] ?? 'photo',
+      scope: f['imp.scope'] ?? 'project', owner: f['imp.owner'], credit: f['imp.credit'], tags: f['imp.tags'], replace: existing}});
+    for (const k of Object.keys(S.drafts)) if (k.startsWith('imp.') && k !== 'imp.scope' && k !== 'imp.kind') delete S.drafts[k];
+    S.importFile = null;
+    toast(`นำเข้า user:${r.id} แล้ว`);
+    if (want.intent === 'replace' && want.from) {
+      await refresh();
+      S.mapUI = {to: `user:${r.id}`, from: want.from, keep: want.keep, impact: null};
+      return loadMapImpact();
+    }
+    if (want.intent === 'add') {
+      const text = `ใส่ user:${r.id} ในช็อตที่เหมาะ${want.where ? ` — ${want.where}` : ''} (คำอธิบายภาพ: ${r.description}) · ห้ามแก้บทพากย์ · ใส่ vector สำรอง`;
+      await api(`/api/p/${S.slug}/feedback`, {method: 'POST', body: {target: `user:${r.id}`, text}});
+      toast('ส่งคำขอให้ Claude ใส่ภาพแล้ว — คัดลอก prompt ในแผงขวา');
+    }
+    await refresh();
+  },
+  async 'imp-edit'(el) {
+    const x = (S.d.imports?.items ?? []).find((i) => i.id === el.dataset.id);
+    const text = window.prompt(`คำอธิบายของ user:${el.dataset.id}`, x?.description ?? '');
+    if (text == null || !text.trim()) return;
+    await api(`/api/p/${S.slug}/imports/${el.dataset.id}`, {method: 'POST', body: {description: text.trim(), scope: el.dataset.scope}});
+    toast('บันทึกแล้ว');
+    await refresh();
+  },
+  async 'imp-remove'(el) {
+    const where = el.dataset.scope === 'library' ? 'คลังกลาง (ทุกโปรเจกต์จะใช้ไม่ได้)' : 'โปรเจกต์นี้';
+    if (!window.confirm(`ลบ user:${el.dataset.id} ออกจาก${where}?\nช็อตที่ใช้อยู่จะกลับไปใช้ vector สำรอง (ถ้ามี)`)) return;
+    await api(`/api/p/${S.slug}/imports/${el.dataset.id}`, {method: 'POST', body: {remove: true, scope: el.dataset.scope}});
+    toast('ลบแล้ว');
+    await refresh();
+  },
+  'fb-ref'(el) { promptFeedback(`ref:${el.dataset.id}`, `อยากได้รูปแบบไหนแทน ${el.dataset.id} (หรือบอกว่าไม่ต้องใช้)`); },
+  async 'ref-approve'(el) {
+    await api(`/api/p/${S.slug}/refs/approve`, {method: 'POST', body: {id: el.dataset.id, approved: el.dataset.on === '1'}});
+    toast(el.dataset.on === '1' ? `ใช้ ${el.dataset.id} ในคลิปแล้ว` : `เลิกใช้ ${el.dataset.id}`);
+    await refresh();
+  },
+  async 'project-delete'() {
+    const typed = window.prompt(`ย้ายโปรเจกต์ไปถังขยะ (กู้คืนได้)\nพิมพ์ชื่อ "${S.slug}" เพื่อยืนยัน`);
+    if (typed == null) return;
+    if (typed.trim() !== S.slug) return toast('ชื่อไม่ตรง — ยังไม่ได้ลบ', true);
+    const r = await api(`/api/p/${S.slug}/delete`, {method: 'POST', body: {confirm: S.slug}});
+    toast(`ย้าย ${S.slug} ไปถังขยะแล้ว (${r.items.length} รายการ)`);
+    go('#/');
+  },
+  async 'trash-restore'(el) {
+    const r = await api(`/api/trash/${el.dataset.id}/restore`, {method: 'POST', body: {}});
+    toast(`กู้คืน ${r.slug} แล้ว`);
+    await refresh();
+  },
+  async 'trash-purge'(el) {
+    if (!window.confirm(`ลบ "${el.dataset.slug}" ถาวร?\nเสียงพากย์/รูป/วิดีโอของเรื่องนี้จะหายหมด กู้คืนไม่ได้`)) return;
+    await api(`/api/trash/${el.dataset.id}/purge`, {method: 'POST', body: {confirm: true}});
+    toast('ลบถาวรแล้ว');
+    await refresh();
+  },
   'fb-post'(el) { promptFeedback(`post:${el.dataset.id}`, `อยากให้แก้อะไรในข้อความโพสต์ ${el.dataset.id}`); },
   'fb-cover'(el) { promptFeedback(`cover:${el.dataset.id}`, `อยากให้แก้อะไรในปก ${el.dataset.id}`); },
   'fb-img'(el) { promptFeedback(`img:${el.dataset.id}`, `อยากให้รูป ${el.dataset.id} เปลี่ยนอะไร (Claude จะแก้ prompt ใน images.json แล้วคุณกดสร้างใหม่)`); },
@@ -972,8 +1457,8 @@ const ACT = {
     go(`#/p/${r.slug}/brief`);
   },
 };
-const promptFeedback = (target, label) => {
-  const text = window.prompt(label);
+const promptFeedback = (target, label, def = '') => {
+  const text = window.prompt(label, def);
   if (!text?.trim()) return;
   api(`/api/p/${S.slug}/feedback`, {method: 'POST', body: {target, text: text.trim()}})
     .then(() => { toast('เพิ่มเข้าคิวแล้ว'); return refresh(); })

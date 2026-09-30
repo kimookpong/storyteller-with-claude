@@ -6,11 +6,11 @@
 |---|-------|--------|-----------|
 | 0 | Settings | `settings.json` — format · style · voice · ความยาว (rule 01) → `npm run budget -- <slug>` | ผู้ใช้เลือกใน HistoryTeller (Claude เสนอได้ แต่ไม่แก้เองหลังเริ่มงาน) |
 | 1 | Brief | `brief.md` — หัวข้อ, คำถามหลักที่คนดูจะได้คำตอบ, กลุ่มคนดู, 1 ประโยคที่อยากให้จำ | ✅ ผู้ใช้อนุมัติ |
-| 2 | Research | `facts.md` — ข้อเท็จจริง/ตัวเลข + แหล่งที่มา + ระดับความมั่นใจ | |
+| 2 | Research | `facts.md` — ข้อเท็จจริง/ตัวเลข + แหล่งที่มา + ระดับความมั่นใจ · ภาพจริง (ไม่บังคับ): `refs.json` ตาม `15-research-images` → ผู้ใช้กด “ดาวน์โหลด + ตรวจ license” แล้ว “ใช้รูปนี้” ในหน้า ค้นคว้า | |
 | 3 | Beat sheet | `beats.md` — ตาม `02-story-structure` + ตาราง beat จาก `npm run budget` พร้อม timecode และ `era` ของแต่ละ beat | ✅ ผู้ใช้อนุมัติ |
 | 4 | Script | `script.md` — บทพากย์เต็ม ตาม `03-narration-thai` + persona ใน `presets/voices/<voice>.md` + ตรวจงบคำ | ✅ ผู้ใช้อนุมัติ |
 | 5 | Shot list | `shots.json` — ตาม `09-shotlist-schema` | |
-| 6 | Asset list (+ ภาพ AI) | `assets.md` — รายการภาพ/เลเยอร์ + license · ถ้าใช้ภาพ AI: `images.json` (rule 04) → ผู้ใช้กด “สร้างภาพ” แล้วเลือกรูปในหน้า Asset list (`imagegen.py` → `public/<slug>/img/`) | ✅ ผู้ใช้เลือกรูป |
+| 6 | Asset list (+ ภาพ AI) | `assets.md` — รายการภาพ/เลเยอร์ + license · **ก่อนตัดสิน vector/PNG รัน `node scripts/asset-plan.mjs <slug>`** (rule 04) · ใช้ asset ที่ผู้ใช้นำเข้าก่อน (`import-asset.mjs list` · rule 16) · ถ้าใช้ภาพ AI: `images.json` (rule 04) → ผู้ใช้กด “สร้างภาพ” แล้วเลือกรูปในหน้า Asset list (`imagegen.py` → `public/<slug>/img/`) | ✅ ผู้ใช้เลือกรูป |
 | 7 | Voice | `python scripts/tts.py projects/<slug>/shots.json` (OpenRouter → Gemini TTS) → `public/<slug>/vo/<sceneId>.wav` + `.json` (timing) 1 ชุดต่อ scene | ✅ ฟังเสียงก่อนทำภาพ |
 | 8 | Remotion | composition อ่าน `shots.json` + วัดความยาวเสียงจริง | |
 | 9 | QA | `npm run validate` + `npm run stills` (contact sheet ทุกช็อต) + ผ่าน `11-qa-checklist` | ✅ ผู้ใช้อนุมัติ render |

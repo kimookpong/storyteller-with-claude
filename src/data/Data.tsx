@@ -17,13 +17,14 @@ const ease = Easing.out(Easing.exp);
 const Counter: React.FC<{d: Extract<DataSpec, {chart: 'counter'}>; t: number; dur: number; vintage: boolean}> = ({d, t, dur, vintage}) => {
   const end = Math.min(2.2, dur * 0.7);
   const k = interpolate(t, [0.2, end], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: ease});
-  const v = Math.round(d.to * k);
+  const dec = d.decimals ?? 0;
+  const v = (d.to * k).toLocaleString('en-US', {minimumFractionDigits: dec, maximumFractionDigits: dec});
   const portrait = usePortrait();
-  const digits = d.to.toLocaleString('en-US').length;
+  const digits = d.to.toLocaleString('en-US', {minimumFractionDigits: dec, maximumFractionDigits: dec}).length;
   return (
     <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', flexDirection: 'column', textAlign: 'center', padding: portrait ? '0 90px' : 0}}>
       <div style={{fontFamily: FONT.display, fontWeight: 700, fontSize: portrait ? Math.min(170, Math.floor(1500 / Math.max(5, digits))) : 190, color: vintage ? C.marker : C.accent2, lineHeight: 1.2, textShadow: vintage ? '0 5px 0 rgba(242,232,213,0.9)' : '0 10px 50px rgba(0,0,0,0.45)', fontVariantNumeric: 'tabular-nums'}}>
-        {v.toLocaleString('en-US')}
+        {v}
       </div>
       {d.suffix && <div style={{fontFamily: FONT.display, fontWeight: 600, fontSize: 70, color: vintage ? '#2A1E14' : C.white, lineHeight: 1.45}}>{d.suffix}</div>}
       {d.label && <div style={{fontFamily: FONT.body, fontWeight: 500, fontSize: 40, color: vintage ? '#2A1E14' : C.white, opacity: 0.85, marginTop: 10, lineHeight: 1.45}}>{d.label}</div>}
@@ -56,16 +57,22 @@ const Bar: React.FC<{d: Extract<DataSpec, {chart: 'bar'}>; t: number; fps: numbe
 };
 
 const Unit: React.FC<{d: Extract<DataSpec, {chart: 'unit'}>; t: number; fps: number}> = ({d, t, fps}) => {
-  const cols = usePortrait() ? 5 : 10;
+  const cols = d.cols ?? (usePortrait() ? 5 : 10);
+  const size = d.size ?? 110;
+  // highlight = ไอคอน N ตัวแรกเต็ม ที่เหลือจาง (เช่น 65 จาก 77) · ขึ้นทีละตัวรวมไม่เกิน ~1.6 วิ
+  const stepT = Math.min(0.06, 1.6 / Math.max(1, d.count));
+  const hi = d.highlight ?? d.count;
   return (
     <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', flexDirection: 'column'}}>
-      <div style={{display: 'grid', gridTemplateColumns: `repeat(${cols}, 110px)`, gap: 18}}>
+      <div style={{display: 'grid', gridTemplateColumns: `repeat(${cols}, ${size}px)`, gap: Math.round(size * 0.16)}}>
         {Array.from({length: d.count}).map((_, i) => {
-          const tl = t - 0.2 - i * 0.06;
+          const tl = t - 0.2 - i * stepT;
           const s = tl < 0 ? 0 : spring({frame: tl * fps, fps, config: {damping: 11}});
+          const fillAt = 0.4 + d.count * stepT + i * stepT * 0.5;
+          const on = i < hi && t >= fillAt;
           return (
             <div key={i} style={{transform: `scale(${s})`}}>
-              <Asset name={d.icon ?? 'farmer'} t={t} dur={1} width={110} />
+              <Asset name={d.icon ?? 'farmer'} t={t} dur={1} width={size} props={d.highlight != null ? {dim: !on} : undefined} />
             </div>
           );
         })}

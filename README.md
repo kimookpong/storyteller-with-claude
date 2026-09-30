@@ -19,6 +19,11 @@ _A Thai-language explainer-video pipeline: Claude writes the research, script an
   - **ซับ:** ไทย / ไทย+อังกฤษ / อังกฤษ / ปิด → ได้ไฟล์ `.srt` `.vtt` ด้วย
 - **ภาพ vector วาดด้วยโค้ด** (SVG ใน `src/assets/`) + **พื้นผิวตามยุค** (ก่อนประวัติศาสตร์ → อนาคต) + กล้อง 2.5D parallax / depth of field
 - **ภาพ AI แบบผสม (ไม่บังคับ):** `images.json` → สร้างผ่าน OpenRouter แล้วคนเลือกรูปเอง · ทุก layer มี vector สำรอง
+- **แนะนำ vector หรือ PNG:** `asset-plan.mjs` ดูขนาดบนจอ จำนวนช็อต และการขยับ แล้วบอกว่าชิ้นไหนควรเป็นรูป พร้อมประเมินค่ารูป
+- **ภาพจริงจากการค้นคว้า (ไม่บังคับ):** ภาพถ่าย/เอกสาร/แผนที่เก่าจาก Wikimedia Commons · Openverse · Met Museum — ตรวจ license จาก API (ใช้ได้ PD / CC0 / CC BY · BY-SA มีคำเตือน · ห้าม NC/ND) คนกดอนุมัติทีละรูป ขึ้นจอแบบ collage พร้อมเครดิตบนจอและท้ายโพสต์อัตโนมัติ
+- **นำเข้า asset ของคุณเอง:** อัปโหลดโลโก้/ภาพถ่าย (PNG · JPEG · WebP) พร้อมคำอธิบายว่าเป็นภาพอะไร ควรใช้ตอนไหน ในหน้า Asset list — เก็บเฉพาะโปรเจกต์หรือคลังกลางใช้ทุกโปรเจกต์ แล้ว Claude อ่านคำอธิบายเพื่อวางในช็อต (`user:<id>`) พร้อมเครดิตอัตโนมัติ
+- **เพิ่ม asset ทีหลังได้:** เลือก "ใช้แทนของเดิม" (ระบบแสดงว่ากระทบช็อตไหน ต้อง render ใหม่อะไรบ้าง โดยไม่ต้องแก้ shot list หรือสร้างเสียงใหม่) หรือ "ให้ Claude ใส่เพิ่ม" · Render / QA / ปก ขึ้น "ล้าสมัย" เองเมื่อภาพที่ใช้เปลี่ยน
+- **ลบโปรเจกต์ได้** จากหน้า Settings — ย้ายไปถังขยะก่อน กู้คืนได้จากหน้าแรก
 - **เสียงพากย์ TTS** (Gemini TTS ผ่าน OpenRouter) + เพลง/SFX + ปรับเสียง −14 LUFS
 - **ข้อความโพสต์ลงแพลตฟอร์ม** (`rules/14-post.md`): ชื่อคลิป/คำอธิบาย/แคปชัน/แฮชแท็กสำหรับ YouTube · TikTok · Instagram · Facebook · X ตาม format — ระบบใส่บทคลิป (chapters) จากเวลาเสียงจริง รายการที่มาจาก `facts.md` และเครดิตให้เอง พร้อมนับตัวอักษรเทียบข้อจำกัดของแต่ละแพลตฟอร์ม (`presets/platforms.json`) และปุ่มคัดลอกในหน้า HistoryTeller
 - **ตรวจงานอัตโนมัติ** (`validate.mjs`): ทุกตัวเลขต้องมีแหล่งใน `facts.md`, คำต้องห้ามของ persona, safe zone, ความยาว hook ฯลฯ
@@ -58,6 +63,9 @@ npm run app                   # HistoryTeller → http://127.0.0.1:4700
 | `node scripts/validate.mjs projects/<slug>`         | ตรวจ `shots.json` ตาม rule                                                         |
 | `python3 scripts/tts.py projects/<slug>/shots.json` | เสียงพากย์ (ลองเสียง: `--audition --slug <slug>`)                                  |
 | `python3 scripts/imagegen.py <slug> --dry-run`      | ดู prompt ภาพ AI ก่อนสร้างจริง                                                     |
+| `node scripts/asset-plan.mjs <slug>` | แนะนำ vector / PNG ต่อ asset + ประมาณค่ารูป |
+| `python3 scripts/refs.py <slug>` | ภาพจริง: ตรวจ license + ดาวน์โหลด |
+| `node scripts/import-asset.mjs list <slug>` | asset ที่นำเข้า (`add` / `remove` ใช้จาก terminal ได้ด้วย) |
 | `npm run studio`                                    | Remotion Studio                                                                    |
 | `HT_SLUG=<slug> npm run stills`                     | ภาพนิ่งทุกช็อต → `out/stills/<slug>/`                                              |
 | `node scripts/render.mjs <slug>`                    | render → `out/<slug>.mp4` + `-master.mp4` + ซับ                                    |
@@ -72,7 +80,7 @@ rules/             rule ทีละเรื่อง (โครงเรื่
 presets/           formats · styles · voices (+ persona .md) · platforms (ข้อจำกัดโพสต์) · channel (เครดิตท้ายโพสต์)
 projects/<slug>/   งานแต่ละเรื่อง: request, brief, facts, beats, script, shots.json, post.json, status (ไม่อยู่ใน repo)
 src/               โค้ด Remotion (composition, asset SVG, กล้อง, ข้อมูล/กราฟ, ตัวอักษรไทย, ซับ)
-scripts/           budget, validate, tts, imagegen, render, stills, cover, subs
+scripts/           budget, validate, tts, imagegen, refs, asset-plan, render, stills, cover, subs, post
 app/               HistoryTeller (Node server + หน้าเว็บ ไม่มี dependency เพิ่ม)
 public/            texture, เพลง/SFX (ไฟล์ต่อโปรเจกต์ public/<slug>/ ไม่ได้อยู่ใน repo)
 docs/              เอกสารออกแบบ + คำสั่ง Claude

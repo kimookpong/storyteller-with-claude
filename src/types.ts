@@ -32,9 +32,9 @@ export type TextItem = {
 };
 
 export type DataSpec =
-  | {chart: 'counter'; to: number; suffix?: string; label?: string; sourceRef: string}
+  | {chart: 'counter'; to: number; suffix?: string; label?: string; sourceRef: string; decimals?: number}
   | {chart: 'bar'; items: {label: string; value: number; highlight?: boolean}[]; unit: string; title?: string; sourceRef: string}
-  | {chart: 'unit'; count: number; perIcon: string; label: string; sourceRef: string; icon?: string}
+  | {chart: 'unit'; count: number; perIcon: string; label: string; sourceRef: string; icon?: string; highlight?: number; cols?: number; size?: number}
   | {chart: 'map'; from: {center: [number, number]; scale: number}; to?: {center: [number, number]; scale: number};
       routes?: {path: [number, number][]; delay?: number; color?: string}[];
       pins?: {at: [number, number]; label: string; delay?: number}[]; sourceRef?: string};
@@ -103,7 +103,7 @@ export type Project = {
   covers?: CoverSpec[];
   /** settings ที่ resolve แล้ว (HistoryTeller ใส่ให้ตอน render ผ่าน props) — ดู scripts/lib/settings.mjs */
   /** รูปจาก AI ที่เลือกแล้ว (render.mjs ใส่จาก images.lock.json) — layer ใช้ "img:<id>" */
-  images?: Record<string, {src: string; aspect: number; kind?: 'plate' | 'cutout' | 'texture'}>;
+  images?: Record<string, {src: string; aspect: number; kind?: 'plate' | 'cutout' | 'texture' | 'photo' | 'logo'; credit?: string}>;
   settings?: {targetSec: number; subtitles?: 'th' | 'th+en' | 'en' | 'off'; voice?: {id: string; charsPerSec: number}; style?: {id: string}; format?: {id: string; width: number; height: number; fps: number}; audio?: AudioSettings | null};
 };
 

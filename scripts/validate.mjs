@@ -2,19 +2,43 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {loadSettings, resolve, budget, supportedEras} from './lib/settings.mjs';
-import {imagesSpec, imagesMap} from './lib/images.mjs';
+import {imagesSpec, imagesMap, refsSpec, refsLock} from './lib/images.mjs';
+import {availableImports} from './lib/imports.mjs';
+import {loadAssetMap, applyAssetMap, entryOf, TARGET_RE, KEY_RE} from './lib/assetmap.mjs';
 
 const dir = process.argv[2] ?? 'projects/coffee-world';
 const slug = path.basename(path.resolve(dir));
 const p = JSON.parse(fs.readFileSync(path.join(dir, 'shots.json'), 'utf8'));
+const ASSET_MAP = loadAssetMap(slug);
+const mappedLayers = applyAssetMap(p, ASSET_MAP); // ตารางจับคู่ (rule 16) — ตรวจแบบที่ render จะใช้จริง
 const facts = fs.existsSync(path.join(dir, 'facts.md')) ? fs.readFileSync(path.join(dir, 'facts.md'), 'utf8') : '';
 const assetSrc = fs.readFileSync('src/assets/index.ts', 'utf8');
 const assets = new Set([...assetSrc.matchAll(/^\s*'?([\w-]+)'?:\s/gm)].map((m) => m[1]));
 const IMG_SPEC = new Set((imagesSpec(slug)?.images ?? []).map((x) => x.id));
 const IMG_OK = imagesMap(slug);
 const imgPending = new Set();
+const REF_SPEC = new Set((refsSpec(slug)?.refs ?? []).map((x) => x.id));
+const REF_LOCK = refsLock(slug).refs ?? {};
+const refPending = new Set();
+const USER_IDS = new Set(availableImports(slug).map((x) => x.id));
 const assetOk = (a, where) => {
   if (a.startsWith('placeholder:')) return;
+  if (a.startsWith('user:')) { // asset ที่ผู้ใช้นำเข้า (rule 16)
+    const [id, fb] = a.slice(5).split('|');
+    if (!USER_IDS.has(id)) (fb ? warns : errors).push(`${where}: asset นำเข้า "${id}" ไม่มีในโปรเจกต์/คลัง${fb ? ` — ใช้ ${fb} แทน` : ''}`);
+    if (fb && !assets.has(fb)) errors.push(`${where}: fallback "${fb}" ของ asset นำเข้า ${id} ไม่มีใน asset vector`);
+    return;
+  }
+  if (a.startsWith('ref:')) { // ภาพจริง (rule 15)
+    const [id, fb] = a.slice(4).split('|');
+    const r = REF_LOCK[id];
+    if (!REF_SPEC.has(id)) errors.push(`${where}: ภาพจริง "${id}" ไม่มีใน refs.json`);
+    else if (r?.status === 'blocked') errors.push(`${where}: ภาพจริง "${id}" ใช้ไม่ได้ — ${(r.flags ?? []).join('; ') || 'license'}`);
+    else if (!IMG_OK[`ref:${id}`]) refPending.add(id + (r ? (r.approved ? '' : ' (รออนุมัติ)') : ' (ยังไม่ดาวน์โหลด)') + (fb ? '' : ' (ไม่มี fallback)'));
+    if (r?.status === 'flag' && r.approved) warns.push(`${where}: ภาพจริง "${id}" ${r.license} — ${(r.flags ?? []).join('; ')}`);
+    if (fb && !assets.has(fb)) errors.push(`${where}: fallback "${fb}" ของภาพจริง ${id} ไม่มีใน asset vector`);
+    return;
+  }
   if (a.startsWith('img:')) {
     const [id, fb] = a.slice(4).split('|');
     if (!IMG_SPEC.has(id)) errors.push(`${where}: รูป "${id}" ไม่มีใน images.json`);
@@ -131,7 +155,21 @@ for (const c of p.covers ?? []) {
 }
 
 console.log(`scenes ${p.scenes.length} · shots ${kinds.length} · covers ${p.covers?.length ?? 0} · parallax ${(par * 100).toFixed(0)}% · chars ${totalChars} · est ${estSec.toFixed(0)}s`);
+if (refPending.size) warns.push(`ภาพจริงยังใช้ไม่ได้ ${refPending.size} รูป (ใช้ fallback ไปก่อน): ${[...refPending].slice(0, 8).join(', ')} — python3 scripts/refs.py ${slug} แล้วกด "ใช้รูปนี้" ในหน้า ค้นคว้า`);
 if (imgPending.size) warns.push(`รูป AI ยังไม่ได้เลือก ${imgPending.size} รูป (ช็อตใช้ vector fallback ไปก่อน · ไม่มี fallback = กล่องชื่อ): ${[...imgPending].slice(0, 8).join(', ')}${imgPending.size > 8 ? '…' : ''} — python scripts/imagegen.py ${slug} แล้วเลือกในหน้า Asset list`);
+// ตารางจับคู่ + asset ที่ยังไม่ได้ใช้ (rule 16)
+for (const [k, v] of Object.entries(ASSET_MAP)) {
+  const e = entryOf(v);
+  if (!KEY_RE.test(k) || !e || !TARGET_RE.test(e.to)) errors.push(`asset-map.json: "${k}" → ${JSON.stringify(v)} ไม่ถูกต้อง`);
+}
+if (Object.keys(ASSET_MAP).length) console.log(`asset-map: ${Object.keys(ASSET_MAP).length} คู่ · แทนที่ ${mappedLayers} layer`);
+{
+  const used = JSON.stringify(p);
+  const own = availableImports(slug).filter((x) => x.scope === 'project' && !used.includes(`user:${x.id}`)).map((x) => x.id);
+  if (own.length) warns.push(`asset ที่นำเข้ายังไม่ได้ใช้ ${own.length} ชิ้น: ${own.join(', ')} — ใส่ในช็อต (user:<id>) หรือกด "ใช้แทน…" ในหน้า Asset list`);
+  const refsIdle = Object.entries(REF_LOCK).filter(([id, r]) => r.approved && !used.includes(`ref:${id}`)).map(([id]) => id);
+  if (refsIdle.length) warns.push(`ภาพจริงที่อนุมัติแล้วแต่ยังไม่ได้ใช้: ${refsIdle.join(', ')}`);
+}
 warns.forEach((w) => console.log('⚠', w));
 errors.forEach((e) => console.log('✗', e));
 if (errors.length) process.exit(1);

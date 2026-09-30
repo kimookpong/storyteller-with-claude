@@ -26,7 +26,7 @@
 {"id":"fb-002-dc27","target":"shot:S04-04","text":"บับเบิลเด้งช้าไป","status":"open","by":"user","at":"…"}
 {"id":"fb-002-dc27","status":"done","by":"claude","note":"delay 0.4 → 1.1","at":"…"}
 ```
-- `target`: `project` · `settings` · `brief|research|beats|script|assets` · `stage:<key>` · `scene:S03` · `shot:S04-08` · `vo:S02` · `cover:B` · `post` / `post:<platform>` (แก้ข้อความใน post.json) · `qa:<key>` · `img:<id>` (แก้ prompt ใน images.json — แล้วบอกผู้ใช้กด “สร้างใหม่” ของรูปนั้น)
+- `target`: `project` · `settings` · `brief|research|beats|script|assets` · `stage:<key>` · `scene:S03` · `shot:S04-08` · `vo:S02` · `cover:B` · `post` / `post:<platform>` (แก้ข้อความใน post.json) · `user:<id>` (asset ที่ผู้ใช้นำเข้า — ย้าย/เลิกใช้ในช็อต หรือแก้ description) · `ref:<id>` (เปลี่ยน/ตัดภาพจริงใน refs.json — แล้วบอกผู้ใช้กด “ดาวน์โหลด + ตรวจ license”) · `qa:<key>` · `img:<id>` (แก้ prompt ใน images.json — แล้วบอกผู้ใช้กด “สร้างใหม่” ของรูปนั้น) · `asset:<name>` (ภาพวาด vector จากหน้า Asset list — แก้โค้ดใน `src/assets/*.tsx` ถ้าเป็นเรื่องหน้าตา หรือแก้ props/ขนาด/ตำแหน่งของ layer ใน shots.json ถ้าเป็นเรื่องการใช้ในช็อต · asset ที่ใช้หลายโปรเจกต์ ห้ามเปลี่ยนค่าเริ่มต้นจนโปรเจกต์อื่นเพี้ยน — เพิ่ม prop แทน)
 - สถานะล่าสุดของแต่ละ `id` = event ล่าสุด (`open` / `done` / `dismissed`)
 - **ห้ามแก้หรือลบบรรทัดเดิม** — ปิดงานด้วยการ append บรรทัดใหม่เท่านั้น
 
@@ -47,6 +47,7 @@
 6. แก้ไฟล์ต้นน้ำหลังอนุมัติ (เช่น script) → ตั้ง stage ปลายน้ำที่กระทบเป็น `review` พร้อม note ว่าต้องทำใหม่
 7. งานที่ต้องใช้เน็ต/เครื่องผู้ใช้ (tts, imagegen, render, stills, cover) — ถ้ารันเองไม่ได้ ให้บอกผู้ใช้กดปุ่มใน HistoryTeller (หน้า เสียงพากย์ / Preview & Render / ปก) **อย่าหาทางอ้อม**
 8. เขียน JSON ให้ถูกต้องเสมอ (UI อ่านไฟล์ทันทีที่เปลี่ยน) — status.json เขียนทั้งไฟล์, feedback.jsonl ต่อท้ายบรรทัดเดียว
+9. **ห้ามลบโปรเจกต์ / ถังขยะเอง** — ผู้ใช้ลบจากหน้า Settings ของโปรเจกต์ (ย้ายไป `projects/_trash/` กู้คืนได้จากหน้าแรก) · ห้ามแตะ `refs.lock.json` → `approved` (ผู้ใช้อนุมัติภาพจริงเอง)
 
 ## โปรเจกต์ใหม่
 UI สร้าง `projects/<slug>/request.md` (หัวข้อ/คำถาม/คนดู/ประโยคที่อยากให้จำ) + `status.json` ให้

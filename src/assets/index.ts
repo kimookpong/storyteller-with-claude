@@ -5,6 +5,8 @@ import * as world from './world';
 import * as origins from './origins';
 import * as feed from './feed';
 import * as nakhon from './nakhon';
+import * as srabua from './srabua';
+import * as flood from './flood';
 
 export const ASSETS: Record<string, AssetDef> = {
   sky: common.sky,
@@ -112,4 +114,25 @@ export const ASSETS: Record<string, AssetDef> = {
   'junk-ship': nakhon.junkShip,
   'vote-hands': nakhon.voteHands,
   'giant-pin': nakhon.giantPin,
+  // srabua
+  'ghost-crab': srabua.ghostCrab,
+  'fiddler-crab': srabua.fiddlerCrab,
+  polaroid: srabua.polaroid,
+  'beach-umbrella': srabua.beachUmbrella,
+  'sand-ground': srabua.sandGround,
+  'mangrove-tree': srabua.mangroveTree,
+  'planter-silhouette': srabua.planterSilhouette,
+  'sea-life': srabua.seaLife,
+  'football-field': srabua.footballField,
+  'village-house': srabua.villageHouse,
+  // thai-flood
+  'paper-boat': flood.paperBoat,
+  'door-frame': flood.doorFrame,
+  'thai-roof': flood.thaiRoof,
+  rowboat: flood.rowboat,
+  'democracy-monument': flood.democracyMonument,
+  'longtail-boat': flood.longtailBoat,
+  'city-bus': flood.cityBus,
+  'traffic-light': flood.trafficLight,
+  'flood-drop': flood.floodDrop,
 };

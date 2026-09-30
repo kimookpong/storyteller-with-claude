@@ -5,11 +5,13 @@ import {renderStill, selectComposition} from '@remotion/renderer';
 import fs from 'node:fs';
 import path from 'node:path';
 import {imagesMap} from './lib/images.mjs';
+import {loadAssetMap, applyAssetMap} from './lib/assetmap.mjs';
 
 const slug = process.argv[2] ?? 'coffee-world';
 const only = process.argv.slice(3);
 const project = JSON.parse(fs.readFileSync(`projects/${slug}/shots.json`, 'utf8'));
 project.images = imagesMap(slug); // รูปจาก AI ที่เลือกแล้ว (img:<id>)
+applyAssetMap(project, loadAssetMap(slug)); // ตารางจับคู่ asset (rule 16)
 const covers = (project.covers ?? []).filter((c) => !only.length || only.includes(c.id));
 if (!covers.length) {
   console.error(`ไม่มี "covers" ใน projects/${slug}/shots.json — ดู rules/12-cover.md`);

@@ -4,6 +4,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {loadSettings, resolve, budget} from './settings.mjs';
+import {refsLock, refUsable} from './images.mjs';
+import {availableImports} from './imports.mjs';
+import {loadAssetMap, applyAssetMap} from './assetmap.mjs';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
 const P = (...xs) => path.join(ROOT, ...xs);
@@ -73,6 +76,7 @@ const tagify = (h) => (String(h).startsWith('#') ? String(h) : `#${h}`).replace(
 export const assemble = (slug, override) => {
   const post = override ?? readJson(P('projects', slug, 'post.json'));
   const shots = readJson(P('projects', slug, 'shots.json'));
+  if (shots) applyAssetMap(shots, loadAssetMap(slug)); // เครดิตตามภาพที่ใช้จริง
   const settings = resolve(loadSettings(slug));
   const fmt = settings.format?.id ?? loadSettings(slug).format ?? 'landscape-16x9';
   const presets = readJson(P('presets', 'platforms.json'), {platforms: []}).platforms;
@@ -87,6 +91,13 @@ export const assemble = (slug, override) => {
   const chapters = tl && fmt === 'landscape-16x9' ? chaptersFor(tl, post.chapters ?? {}) : []; // Shorts ไม่มีบทคลิป
   const credit = [channel.creditLine, post.credit].filter(Boolean).join('\n');
   const srcText = sources.map((s) => `• ${s.name}${s.url ? ` — ${s.url}` : ''}`).join('\n');
+  // เครดิตภาพจริงที่ใช้ในคลิป (rule 15) — CC BY / BY-SA ต้องมีชื่อผู้สร้าง + license + ลิงก์
+  const used = new Set(JSON.stringify(shots ?? {}).match(/ref:[a-z0-9-]+/g)?.map((x) => x.slice(4)) ?? []);
+  const photoCredits = Object.entries(refsLock(slug).refs ?? {}).filter(([id, r]) => used.has(id) && refUsable(r))
+    .map(([, r]) => `• ${r.title} — ${r.author} · ${r.license}${r.licenseUrl ? ` (${r.licenseUrl})` : ''}${r.sourceUrl ? ` — ${r.sourceUrl}` : ''}`);
+  const usedUser = new Set(JSON.stringify(shots ?? {}).match(/user:[a-z0-9-]+/g)?.map((x) => x.slice(5)) ?? []);
+  for (const x of availableImports(slug)) if (usedUser.has(x.id) && x.credit) photoCredits.push(`• ${x.title || x.id} — ${x.credit}`);
+  const srcAll = [srcText, photoCredits.length ? `ภาพประกอบ\n${photoCredits.join('\n')}` : ''].filter(Boolean).join('\n\n');
   const warnings = [], errors = [];
   if (post.chapters && !chapters.length && fmt === 'landscape-16x9') warnings.push('บท YouTube ใช้ไม่ได้ (ต้อง ≥ 3 บท บทละ ≥ 10 วิ) — ตัด {{chapters}} ออกให้');
   if (tl?.estimated && chapters.length) warnings.push('ยังไม่มีเสียงพากย์ครบ — เวลาในบท (chapters) เป็นค่าประมาณ สร้างเสียงแล้วเปิดดูใหม่');
@@ -95,7 +106,7 @@ export const assemble = (slug, override) => {
     let t = String(text ?? '');
     const hs = (hashtags ?? []).map(tagify).join(' ');
     t = t.replace(/\{\{chapters\}\}/g, chapters.map((c) => `${mmss(c.start)} ${c.title}`).join('\n'))
-      .replace(/\{\{sources\}\}/g, srcText).replace(/\{\{credit\}\}/g, credit).replace(/\{\{hashtags\}\}/g, hs);
+      .replace(/\{\{sources\}\}/g, srcAll).replace(/\{\{credit\}\}/g, credit).replace(/\{\{hashtags\}\}/g, hs);
     if (hs && hashtags?.length && !/\{\{hashtags\}\}/.test(String(text)) && !t.includes(hs)) t = `${t.trimEnd()}\n\n${hs}`;
     return t.replace(/\n{3,}/g, '\n\n').trim();
   };
@@ -129,7 +140,22 @@ export const assemble = (slug, override) => {
     platforms.push({id: pf.id, name: pf.name, fields, hashtags: hs.map(tagify), hashtagIdeal: pf.hashtags?.ideal ?? null, tips: pf.tips, cover: d.cover ?? null, fit: pf.formats.includes(fmt)});
   }
   if (post.aiDisclosure === undefined) warnings.push('ยังไม่ได้ระบุ aiDisclosure (ต้องติดป้ายเนื้อหา AI ไหม — rules/14)');
-  return {exists: true, kit, chapters, sources, platforms, aiDisclosure: post.aiDisclosure ?? null, notes: post.notes ?? null, warnings, errors};
+  // เทรนด์ (rules/14 · เกาะเทรนด์): เช็กสดตอนเขียน · หมดอายุไว
+  const tr = post.trends ?? null;
+  let trends = null;
+  if (!tr) warnings.push('ยังไม่ได้เช็กเทรนด์ (post.json → trends · rules/14 เกาะเทรนด์)');
+  else {
+    const age = tr.checkedAt ? Math.floor((Date.now() - Date.parse(tr.checkedAt)) / 86400000) : null;
+    const items = (tr.items ?? []).map((x) => ({term: String(x.term ?? ''), type: x.type ?? 'keyword', use: x.use !== false, why: x.why ?? '', evidence: x.evidence ?? null, where: x.where ?? []}));
+    if (age == null) warnings.push('trends ไม่มี checkedAt (วันที่เช็กเทรนด์)');
+    else if (age > 7) warnings.push(`เทรนด์เช็กเมื่อ ${age} วันก่อน — เทรนด์หมดอายุไว เช็กใหม่ก่อนโพสต์`);
+    const used = new Set(items.filter((x) => x.use && x.type === 'hashtag').map((x) => x.term.replace(/^#/, '')));
+    const allTags = new Set(platforms.flatMap((p) => p.hashtags.map((h) => h.replace(/^#/, ''))));
+    for (const t of used) if (!allTags.has(t)) warnings.push(`แฮชแท็กเทรนด์ #${t} ยังไม่ได้ใส่ในแพลตฟอร์มไหนเลย`);
+    for (const x of items) if (x.use && !x.evidence) warnings.push(`เทรนด์ "${x.term}" ไม่มีหลักฐาน (evidence) — ห้ามเดาเทรนด์`);
+    trends = {checkedAt: tr.checkedAt ?? null, ageDays: age, summary: tr.summary ?? '', items};
+  }
+  return {exists: true, kit, chapters, sources, platforms, aiDisclosure: post.aiDisclosure ?? null, notes: post.notes ?? null, trends, warnings, errors};
 };
 
 /** ไฟล์ markdown พร้อมคัดลอก */
@@ -138,6 +164,11 @@ export const toMarkdown = (r) => {
   for (const p of r.platforms) {
     L.push(`## ${p.name}${p.cover ? ` · ปก ${p.cover}` : ''}`, '');
     for (const f of p.fields) L.push(`**${f.label}** (${f.count}/${f.limit})`, '', '```', f.text, '```', '');
+  }
+  if (r.trends) {
+    L.push(`## เทรนด์ (เช็กเมื่อ ${r.trends.checkedAt ?? '?'})`, '', r.trends.summary || '', '');
+    for (const x of r.trends.items) L.push(`- ${x.use ? '✓' : '✗'} **${x.term}** (${x.type}) — ${x.why}${x.evidence ? ` · ${x.evidence}` : ''}`);
+    L.push('');
   }
   return L.join('\n');
 };
