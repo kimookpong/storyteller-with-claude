@@ -11,6 +11,9 @@ refs.json:
   {"refs": [{"id": "chedi-1900", "provider": "commons", "file": "File:Wat Phra Mahathat.jpg",
              "use": "onscreen", "factRef": "F21", "note": "ภาพพระธาตุเก่า"}]}
   provider: commons (file = "File:…") · openverse (key = uuid) · met (key = objectID)
+  ค้นให้: {"id": "flood69", "provider": "commons", "category": "2026 floods in Thailand", "limit": 4, ...}
+          {"id": "clouds", "provider": "openverse", "search": "monsoon rain clouds", "limit": 2, ...}
+          → refs.py ค้นจาก API แล้วแทนที่ด้วยไฟล์จริง flood69-1, flood69-2 … ใน refs.json (ผู้ใช้ยังต้องกด "ใช้รูปนี้")
 
 license ตรวจจาก API ของแหล่งเสมอ (ไม่เชื่อข้อความใน refs.json):
   ok      = Public domain / CC0 / PDM / CC BY
@@ -124,6 +127,66 @@ def fetch_met(ref):
 
 
 PROVIDERS = {"commons": fetch_commons, "openverse": fetch_openverse, "met": fetch_met}
+
+# ---------- ค้นหา (search / category) → แตกเป็นไฟล์จริงจาก API แล้วเขียนกลับ refs.json ----------
+SKIP_TITLE = re.compile(r"logo|seal|emblem|flag of|coat of arms|signature|icon|\.svg$|\.pdf$|\.tif", re.I)
+
+
+def search_commons(ref, limit):
+    if ref.get("category"):
+        cat = ref["category"] if ref["category"].startswith("Category:") else "Category:" + ref["category"]
+        q = {"action": "query", "list": "categorymembers", "cmtitle": cat, "cmtype": "file", "cmlimit": str(limit * 4), "format": "json", "formatversion": "2"}
+        d = get("https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode(q))
+        titles = [x["title"] for x in d.get("query", {}).get("categorymembers", [])]
+    else:
+        q = {"action": "query", "list": "search", "srsearch": ref["search"], "srnamespace": "6", "srlimit": str(limit * 4), "format": "json", "formatversion": "2"}
+        d = get("https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode(q))
+        titles = [x["title"] for x in d.get("query", {}).get("search", [])]
+    titles = [t for t in titles if re.search(r"\.(jpe?g|png|webp)$", t, re.I) and not SKIP_TITLE.search(t)]
+    return [{"file": t} for t in titles[:limit]]
+
+
+def search_openverse(ref, limit):
+    q = {"q": ref["search"], "license_type": "commercial,modification", "page_size": str(limit * 3), "mature": "false"}
+    d = get("https://api.openverse.org/v1/images/?" + urllib.parse.urlencode(q))
+    return [{"key": x["id"], "title": x.get("title")} for x in d.get("results", []) if not SKIP_TITLE.search(x.get("title") or "")][:limit]
+
+
+def expand_searches(spec, spec_f):
+    """entry ที่มี search/category (ไม่มี file/key) → ไฟล์จริงจากผลค้น · เขียน refs.json ใหม่ (ชื่อไฟล์มาจาก API ไม่ใช่การเดา)"""
+    out, changed = [], False
+    ids = {r["id"] for r in spec.get("refs", [])}
+    for r in spec.get("refs", []):
+        if not (r.get("search") or r.get("category")) or r.get("file") or r.get("key"):
+            out.append(r); continue
+        limit = max(1, min(10, int(r.get("limit", 3))))
+        fn = {"commons": search_commons, "openverse": search_openverse}.get(r.get("provider", "commons"))
+        if not fn:
+            print(f"✗ {r['id']}: ค้นได้เฉพาะ commons / openverse"); out.append(r); continue
+        try:
+            found = fn(r, limit)
+        except Exception as e:  # noqa: BLE001
+            print(f"✗ {r['id']}: ค้นไม่สำเร็จ — {e}"); out.append(r); continue
+        if not found:
+            print(f"· {r['id']}: ไม่พบรูปจาก \"{r.get('search') or r.get('category')}\""); out.append({**r, "found": 0}); continue
+        base = {k: v for k, v in r.items() if k not in ("search", "category", "limit", "id", "found")}
+        for i, f in enumerate(found, 1):
+            nid = f"{r['id']}-{i}"
+            while nid in ids:
+                nid += "x"
+            ids.add(nid)
+            extra = {"title": f.pop("title")} if f.get("title") else {}
+            out.append({"id": nid, **base, **f, "from": {"search": r.get("search"), "category": r.get("category")}, **({"note": (base.get("note", "") + f" · {extra['title']}").strip(" ·")} if extra else {})})
+        rid0 = r["id"]
+        print(f"🔎 {rid0}: เจอ {len(found)} รูป → " + ", ".join(f"{rid0}-{i}" for i in range(1, len(found) + 1)))
+        changed = True
+        time.sleep(0.4)
+    if changed:
+        spec["refs"] = out
+        tmp = spec_f.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(spec, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        tmp.replace(spec_f)
+    return spec
 EXT = {b"\xff\xd8": ".jpg", b"\x89P": ".png", b"GI": ".gif", b"RI": ".webp"}
 
 
@@ -145,6 +208,8 @@ def main():
     if not spec_f.exists():
         sys.exit(f"ไม่มี {spec_f.relative_to(REPO)} — ให้ Claude ทำใน stage 2 ตาม rules/15-research-images.md")
     spec = json.loads(spec_f.read_text(encoding="utf-8"))
+    if not a.dry_run:
+        spec = expand_searches(spec, spec_f)
     lock = json.loads(lock_f.read_text(encoding="utf-8")) if lock_f.exists() else {"refs": {}}
     lock.setdefault("refs", {})
     out = REPO / "public" / a.slug / "ref"

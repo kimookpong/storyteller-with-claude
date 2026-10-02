@@ -21,6 +21,7 @@
 ```
 - `id` a-z 0-9 - · 1 รูป 1 id · `factRef` = ข้อเท็จจริงที่รูปนี้ช่วยเล่า (ต้องมีใน facts.md)
 - ชื่อไฟล์ Commons ต้องมาจากหน้าที่เปิดดูจริง (WebSearch/WebFetch หน้า Commons หรือ Wikipedia) — ห้ามเดาชื่อไฟล์
+- **ถ้าเปิดหน้า Commons ไม่ได้/หาชื่อไฟล์ไม่พอ → ใช้การค้นอัตโนมัติ** แทนการเดา: `{"id": "flood69", "provider": "commons", "category": "2026 floods in Thailand", "limit": 4, ...}` หรือ `"search": "คำค้น"` (commons / openverse) · `refs.py` บนเครื่องผู้ใช้ค้นจาก API แล้ว **แทนที่ entry นั้นด้วยไฟล์จริง** `flood69-1 … flood69-4` ใน refs.json (ตัดโลโก้/ตรา/svg ให้) · ใช้หมวด (category) ที่ตรงเรื่องก่อนคำค้นกว้าง ๆ · factRef/note ของ entry ค้นใช้กับทุกรูปที่เจอ
 - **จำนวน:** ดูบรรทัด "ภาพจริง" ใน `npm run budget -- <slug>` — คิดจาก จำนวนช็อต × สัดส่วน collage/parallax ของสไตล์ × `refs` ใน `presets/styles/<style>.json` (สไตล์ภาพเก่าอย่าง retro-newsreel / archive-doc ใช้ภาพจริงมาก · kids-cartoon ไม่ใช้)
   - ค้น **ผู้สมัคร ~1.3 เท่า** ของที่จะใช้จริง (เผื่อ license ไม่ผ่าน / ผู้ใช้ไม่เลือก) · ภาพไม่ซ้ำไม่เกิน 30 (คลิปยาวใช้ภาพเดิมซ้ำได้ ≤ 2 ช็อต ครอปต่างกัน)
   - ตัวอย่าง: retro-newsreel 1 นาที ≈ ใช้ 5–10 ช็อต ค้น ~13 รูป · kurzgesagt-vox 3 นาที ≈ 6–11 ช็อต ค้น ~15 รูป

@@ -7,6 +7,7 @@ import * as feed from './feed';
 import * as nakhon from './nakhon';
 import * as srabua from './srabua';
 import * as flood from './flood';
+import * as tee from './tee';
 
 export const ASSETS: Record<string, AssetDef> = {
   sky: common.sky,
@@ -135,4 +136,11 @@ export const ASSETS: Record<string, AssetDef> = {
   'city-bus': flood.cityBus,
   'traffic-light': flood.trafficLight,
   'flood-drop': flood.floodDrop,
+  // tee-person
+  'curtain-window': tee.curtainWindow,
+  'cloud-kid': tee.cloudKid,
+  'rain-street': tee.rainStreet,
+  'phone-cartoon': tee.phoneCartoon,
+  'notice-board': tee.noticeBoard,
+  'rumor-sign': tee.rumorSign,
 };

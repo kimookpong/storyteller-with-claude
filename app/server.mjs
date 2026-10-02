@@ -194,7 +194,7 @@ const refsInfo = (slug) => {
   return (spec.refs ?? []).map((x) => {
     const r = lock[x.id] ?? null;
     const f = r?.file && fs.existsSync(P('public', r.file)) ? `public/${r.file}` : null;
-    return {id: x.id, provider: x.provider, want: x.file ?? x.key ?? '', use: x.use ?? 'onscreen', factRef: x.factRef ?? null, note: x.note ?? '', usedIn: used[x.id] ?? [],
+    return {id: x.id, provider: x.provider, want: x.file ?? x.key ?? (x.search ? `ค้น: ${x.search}` : x.category ? `หมวด: ${x.category}` : ''), use: x.use ?? 'onscreen', factRef: x.factRef ?? null, note: x.note ?? '', usedIn: used[x.id] ?? [],
       status: r?.status ?? 'new', error: r?.error ?? null, flags: r?.flags ?? [], title: r?.title ?? null, author: r?.author ?? null, license: r?.license ?? null,
       licenseUrl: r?.licenseUrl ?? null, sourceUrl: r?.sourceUrl ?? null, file: f, mtime: f ? fs.statSync(P(f)).mtimeMs : null, approved: r?.approved === true, usable: refUsable(r)};
   });
